@@ -1,5 +1,6 @@
 package com.example.WirelessDisplay;
 
+import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -28,9 +29,17 @@ import android.widget.NumberPicker;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
+
+    ActivityResultLauncher<String[]> mPermissionResultLauncher;
+    private boolean isStoragePermissionGranted = false;
+    private boolean isLocationPermissionGranted = false;
 
     private static final int SPCODE = 100;
     static int IMAGE_COUNTER = 0;
@@ -44,6 +53,28 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), new ActivityResultCallback<Map<String, Boolean>>() {
+            @Override
+            public void onActivityResult(Map<String, Boolean> result) {
+
+                if (result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) != null){
+
+                    isStoragePermissionGranted = result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
+                }
+
+                if (result.get(Manifest.permission.ACCESS_FINE_LOCATION) != null){
+
+                    isLocationPermissionGranted = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
+
+                }
+
+            }
+        });
+
+        requestPermission();
+
 
         storage = findViewById(R.id.storage);
         getimagebtn=findViewById(R.id.getimagebutton);
@@ -81,7 +112,7 @@ public class MainActivity extends AppCompatActivity {
 
         slideshowTime.setOnClickListener(view -> setSlideshowTime());
 
-        storage.setOnClickListener(view -> checkStoragePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, SPCODE));
+//        storage.setOnClickListener(view -> checkStoragePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, SPCODE));
 
         getimagebtn.setOnClickListener(view -> {
             Intent intent=new Intent(Intent.ACTION_GET_CONTENT);
@@ -98,29 +129,64 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    public void checkStoragePermission(String permission, int requestCode)
-    {
-        if (ContextCompat.checkSelfPermission(MainActivity.this, permission) == PackageManager.PERMISSION_DENIED) {
+    private void requestPermission(){
 
-            ActivityCompat.requestPermissions(MainActivity.this, new String[] { permission }, requestCode);
+        isStoragePermissionGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.WRITE_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED;
+
+        isLocationPermissionGranted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+        ) == PackageManager.PERMISSION_GRANTED;
+
+        List<String> permissionRequest = new ArrayList<String>();
+
+        if (!isStoragePermissionGranted){
+
+            permissionRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+
         }
-        else {
-            Toast.makeText(MainActivity.this, "Permission already granted", Toast.LENGTH_SHORT).show();
+
+        if (!isLocationPermissionGranted){
+
+            permissionRequest.add(Manifest.permission.ACCESS_FINE_LOCATION);
+
         }
+
+        if (!permissionRequest.isEmpty()){
+
+            mPermissionResultLauncher.launch(permissionRequest.toArray(new String[0]));
+
+        }
+
+
     }
 
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-    {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == SPCODE) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(MainActivity.this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
-            } else {
-                Toast.makeText(MainActivity.this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
-            }
-        }
-    }
+//    public void checkStoragePermission(String permission, int requestCode)
+//    {
+//        if (ContextCompat.checkSelfPermission(MainActivity.this, permission) == PackageManager.PERMISSION_DENIED) {
+//
+//            ActivityCompat.requestPermissions(MainActivity.this, new String[] { permission }, requestCode);
+//        }
+//        else {
+//            Toast.makeText(MainActivity.this, "Permission already granted", Toast.LENGTH_SHORT).show();
+//        }
+//    }
+//
+//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
+//    {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+//
+//        if (requestCode == SPCODE) {
+//            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//                Toast.makeText(MainActivity.this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
+//            } else {
+//                Toast.makeText(MainActivity.this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
+//            }
+//        }
+//    }
 
     public void updateImageSelectedText() {
         tv.setText("Images Selected: " + IMAGE_COUNTER);
