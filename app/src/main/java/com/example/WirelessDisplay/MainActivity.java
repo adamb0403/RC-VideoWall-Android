@@ -1,15 +1,13 @@
 package com.example.WirelessDisplay;
 
-import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
 import android.app.AlertDialog;
+import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.view.LayoutInflater;
@@ -29,17 +27,16 @@ import android.widget.NumberPicker;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
     ActivityResultLauncher<String[]> mPermissionResultLauncher;
     private boolean isStoragePermissionGranted = false;
     private boolean isLocationPermissionGranted = false;
+    private boolean isConnectPermissionGranted = false;
 
     private static final int SPCODE = 100;
     static int IMAGE_COUNTER = 0;
@@ -54,26 +51,42 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), new ActivityResultCallback<Map<String, Boolean>>() {
-            @Override
-            public void onActivityResult(Map<String, Boolean> result) {
+        mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
 
-                if (result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) != null){
+            if (result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) != null){
 
-                    isStoragePermissionGranted = result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE);
-
-                }
-
-                if (result.get(Manifest.permission.ACCESS_FINE_LOCATION) != null){
-
-                    isLocationPermissionGranted = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
-
-                }
+                isStoragePermissionGranted = result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
             }
+
+            if (result.get(Manifest.permission.ACCESS_FINE_LOCATION) != null){
+
+                isLocationPermissionGranted = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
+
+            }
+
+            if (result.get(Manifest.permission.BLUETOOTH_CONNECT) != null){
+
+                isConnectPermissionGranted = result.get(Manifest.permission.BLUETOOTH_CONNECT);
+
+            }
+
         });
 
         requestPermission();
+
+        BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (bluetoothAdapter == null) {
+            Toast.makeText(MainActivity.this, "Bluetooth is not supported on this device.", Toast.LENGTH_SHORT).show();
+        }
+        else {
+            Toast.makeText(MainActivity.this, "Bluetooth is compatible on this device.", Toast.LENGTH_SHORT).show();
+            if (!bluetoothAdapter.isEnabled()) {
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                startActivity(enableBtIntent); // Does not support API > 30. Add Connect permission to support android11
+            }
+        }
+
 
 
         storage = findViewById(R.id.storage);
@@ -141,6 +154,11 @@ public class MainActivity extends AppCompatActivity {
                 Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED;
 
+//        isConnectPermissionGranted = ContextCompat.checkSelfPermission(
+//                this,
+//                Manifest.permission.BLUETOOTH_CONNECT
+//        ) == PackageManager.PERMISSION_GRANTED;
+
         List<String> permissionRequest = new ArrayList<String>();
 
         if (!isStoragePermissionGranted){
@@ -154,6 +172,12 @@ public class MainActivity extends AppCompatActivity {
             permissionRequest.add(Manifest.permission.ACCESS_FINE_LOCATION);
 
         }
+
+//        if (!isConnectPermissionGranted){
+//
+//            permissionRequest.add(Manifest.permission.BLUETOOTH_CONNECT);
+//
+//        }
 
         if (!permissionRequest.isEmpty()){
 
@@ -210,7 +234,7 @@ public class MainActivity extends AppCompatActivity {
         slideshowTime.setMaxValue(100);
         slideshowTime.setMinValue(0);
         slideshowTime.setValue(SLIDESHOW_TIME);
-        slideshowTime.setWrapSelectorWheel(true);;
+        slideshowTime.setWrapSelectorWheel(true);
 
         popup.setPositiveButton("Set", (dialog, id) -> SLIDESHOW_TIME = slideshowTime.getValue());
         popup.setNegativeButton("Cancel", (dialog, id) -> {
