@@ -6,6 +6,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.content.pm.PackageManager;
@@ -36,7 +37,7 @@ public class MainActivity extends AppCompatActivity {
     ActivityResultLauncher<String[]> mPermissionResultLauncher;
     private boolean isStoragePermissionGranted = false;
     private boolean isLocationPermissionGranted = false;
-    private boolean isConnectPermissionGranted = false;
+//    private boolean isConnectPermissionGranted = false;
 
     private static final int SPCODE = 100;
     static int IMAGE_COUNTER = 0;
@@ -46,6 +47,7 @@ public class MainActivity extends AppCompatActivity {
     ImageView imageV;
     TextView tv;
 
+    @SuppressLint("MissingPermission") // Wants BLUETOOTH_CONNECT permission for Android 12
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -65,11 +67,11 @@ public class MainActivity extends AppCompatActivity {
 
             }
 
-            if (result.get(Manifest.permission.BLUETOOTH_CONNECT) != null){
-
-                isConnectPermissionGranted = result.get(Manifest.permission.BLUETOOTH_CONNECT);
-
-            }
+//            if (result.get(Manifest.permission.BLUETOOTH_CONNECT) != null){
+//
+//                isConnectPermissionGranted = result.get(Manifest.permission.BLUETOOTH_CONNECT);
+//
+//            }
 
         });
 
