@@ -2,6 +2,7 @@ package com.example.WirelessDisplay;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
@@ -9,8 +10,15 @@ import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.companion.AssociationRequest;
+import android.companion.BluetoothDeviceFilter;
+import android.companion.CompanionDeviceManager;
+import android.content.Context;
+import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.ParcelUuid;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
@@ -31,6 +39,8 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -40,10 +50,12 @@ public class MainActivity extends AppCompatActivity {
 //    private boolean isConnectPermissionGranted = false;
 
     private static final int SPCODE = 100;
+    private static final int SELECT_DEVICE_REQUEST_CODE = 0;
+
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
     static String[] textImage = new String[100];
-    Button getimagebtn, getgifbtn, storage, slideshowTime;
+    Button getimagebtn, getgifbtn, storage, slideshowTime, btbtn;
     ImageView imageV;
     TextView tv;
 
@@ -97,6 +109,7 @@ public class MainActivity extends AppCompatActivity {
         imageV=findViewById(R.id.imageView);
         tv=findViewById(R.id.textView);
         slideshowTime=findViewById(R.id.setSlideshowTime);
+        btbtn=findViewById(R.id.btbutton);
 
 
         updateImageSelectedText();
@@ -126,6 +139,11 @@ public class MainActivity extends AppCompatActivity {
                 });
 
         slideshowTime.setOnClickListener(view -> setSlideshowTime());
+
+        btbtn.setOnClickListener(view -> {
+            companionDeviceManager();
+
+        });
 
 //        storage.setOnClickListener(view -> checkStoragePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, SPCODE));
 
@@ -245,6 +263,68 @@ public class MainActivity extends AppCompatActivity {
 
         AlertDialog alertDialog = popup.create();
         alertDialog.show();
+    }
+
+    public void companionDeviceManager() {
+        CompanionDeviceManager deviceManager =
+                (CompanionDeviceManager) getSystemService(
+                        Context.COMPANION_DEVICE_SERVICE
+                );
+
+        // To skip filtering based on name and supported feature flags,
+        // don't include calls to setNamePattern() and addServiceUuid(),
+        // respectively. This example uses Bluetooth.
+        BluetoothDeviceFilter deviceFilter =
+                new BluetoothDeviceFilter.Builder()
+                        .setNamePattern(Pattern.compile("WIRELESSDISPLAY"))
+//                        .addServiceUuid(
+//                                new ParcelUuid(new UUID(0x123abcL, -1L)), null
+//                        )
+                        .build();
+
+        // The argument provided in setSingleDevice() determines whether a single
+        // device name or a list of device names is presented to the user as
+        // pairing options.
+        AssociationRequest pairingRequest = new AssociationRequest.Builder()
+                .addDeviceFilter(deviceFilter)
+//                .setSingleDevice(false)
+                .build();
+
+        // When the app tries to pair with the Bluetooth device, show the
+        // appropriate pairing request dialog to the user.
+        deviceManager.associate(pairingRequest,
+                new CompanionDeviceManager.Callback() {
+                    @Override
+                    public void onDeviceFound(IntentSender chooserLauncher) {
+                        try {
+                            startIntentSenderForResult(chooserLauncher, SELECT_DEVICE_REQUEST_CODE, null, 0, 0, 0);
+                        } catch (IntentSender.SendIntentException e) {
+                            // failed to send the intent
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(CharSequence error) {
+                        // handle failure to find the companion device
+                    }
+                }, null);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        if (requestCode == SELECT_DEVICE_REQUEST_CODE) {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                BluetoothDevice deviceToPair = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
+                Toast.makeText(MainActivity.this, "Successful connection", Toast.LENGTH_SHORT).show();
+
+                if (deviceToPair != null) {
+                    deviceToPair.createBond();
+                    // ... Continue interacting with the paired device.
+                }
+            }
+        } else {
+            super.onActivityResult(requestCode, resultCode, data);
+        }
     }
 
     public Bitmap obtainBitmap (Uri uri) {
