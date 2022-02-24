@@ -86,12 +86,38 @@
 
     <Button
         android:id="@+id/btbutton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="100dp"
-        android:layout_marginBottom="120dp"
+        android:layout_width="124dp"
+        android:layout_height="54dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="100dp"
         android:text="Connect Bluetooth"
+        android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/disconnectBt"
+        android:layout_width="124dp"
+        android:layout_height="54dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="100dp"
+        android:text="Disconnect Bluetooth"
+        android:textSize="12sp"
+        android:enabled="false"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <TextView
+        android:id="@+id/BTtext"
+        android:layout_width="99dp"
+        android:layout_height="41dp"
+        android:layout_marginBottom="112dp"
+        android:gravity="center"
+        android:text="Bluetooth: Disconnected"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/btbutton"
         app:layout_constraintStart_toStartOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

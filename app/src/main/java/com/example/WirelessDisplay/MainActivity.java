@@ -19,9 +19,14 @@ import android.content.Context;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.os.Message;
 import android.os.ParcelUuid;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Button;
 import android.content.Intent;
@@ -52,18 +57,19 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int SPCODE = 100;
     private static final int SELECT_DEVICE_REQUEST_CODE = 0;
+    private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
 
     private static BluetoothSocket HC05socket;
-    private static BluetoothDevice HC05device;
+    public static Handler handler;
 
     public static CreateConnectThread createConnectThread;
 
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
     static String[] textImage = new String[100];
-    Button getimagebtn, getgifbtn, storage, slideshowTime, btbtn;
+    Button getimagebtn, getgifbtn, storage, slideshowTime, btbtn, disconnectbtn;
     ImageView imageV;
-    TextView tv;
+    TextView tv, btText;
 
     @SuppressLint("MissingPermission") // Wants BLUETOOTH_CONNECT permission for Android 12
     @Override
@@ -107,15 +113,15 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-
-
         storage = findViewById(R.id.storage);
         getimagebtn=findViewById(R.id.getimagebutton);
         getgifbtn=findViewById(R.id.getgifbutton);
         imageV=findViewById(R.id.imageView);
         tv=findViewById(R.id.textView);
+        btText=findViewById(R.id.BTtext);
         slideshowTime=findViewById(R.id.setSlideshowTime);
         btbtn=findViewById(R.id.btbutton);
+        disconnectbtn=findViewById(R.id.disconnectBt);
 
 
         updateImageSelectedText();
@@ -148,7 +154,6 @@ public class MainActivity extends AppCompatActivity {
 
         btbtn.setOnClickListener(view -> {
             companionDeviceManager();
-
         });
 
 //        storage.setOnClickListener(view -> checkStoragePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, SPCODE));
@@ -165,7 +170,26 @@ public class MainActivity extends AppCompatActivity {
             getGif.launch(intent);
         });
 
-
+        handler = new Handler(Looper.getMainLooper()) {
+            @Override
+            public void handleMessage(Message msg) {
+                switch (msg.what) {
+                    case CONNECTING_STATUS:
+                        switch (msg.arg1) {
+                            case 1:
+                                btText.setText("Bluetooth: Connected");
+                                btbtn.setEnabled(false);
+                                disconnectbtn.setEnabled(true);
+                                break;
+                            case -1:
+                                btText.setText("Bluetooth: Connection failed");
+                                btbtn.setEnabled(true);
+                                disconnectbtn.setEnabled(false);
+                        }
+                        break;
+                }
+            }
+        };
     }
 
     private void requestPermission(){
@@ -320,12 +344,13 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (requestCode == SELECT_DEVICE_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
-                HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
-                Toast.makeText(MainActivity.this, "Successful connection", Toast.LENGTH_SHORT).show();
+                BluetoothDevice HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
 
                 if (HC05device != null) {
                     HC05device.createBond();
+                    Toast.makeText(MainActivity.this, "Successful connection", Toast.LENGTH_SHORT).show();
                     // ... Continue interacting with the paired device.
+                    new CreateConnectThread(HC05device).start();
                 }
             }
         } else {
@@ -385,8 +410,69 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
     public static class CreateConnectThread extends Thread {
 
+        public CreateConnectThread(BluetoothDevice device) {
+            /*
+            Use a temporary object that is later assigned to mmSocket
+            because mmSocket is final.
+             */
+            BluetoothSocket tmp = null;
+            UUID uuid = device.getUuids()[0].getUuid();
+
+            try {
+                /*
+                Get a BluetoothSocket to connect with the given BluetoothDevice.
+                Due to Android device varieties,the method below may not work fo different devices.
+                You should try using other methods i.e. :
+                tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
+                 */
+                tmp = device.createRfcommSocketToServiceRecord(uuid);
+
+            } catch (IOException e) {
+                Log.e("CreateConnectThread", "Socket's create() method failed", e);
+            }
+            HC05socket = tmp;
+        }
+
+        public void run() {
+            // Cancel discovery because it otherwise slows down the connection.
+//            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+//            bluetoothAdapter.cancelDiscovery();
+            try {
+                // Connect to the remote device through the socket. This call blocks
+                // until it succeeds or throws an exception.
+                HC05socket.connect();
+                Log.e("Status", "Device connected");
+                handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
+            } catch (IOException connectException) {
+                // Unable to connect; close the socket and return.
+                try {
+                    HC05socket.close();
+                    Log.e("Status", "Cannot connect to device");
+//                    handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
+                } catch (IOException closeException) {
+                    Log.e("run socket", "Could not close the client socket", closeException);
+                }
+                return;
+            }
+
+            // The connection attempt succeeded. Perform work associated with
+            // the connection in a separate thread.
+//            new connectedThread(HC05socket).run();
+        }
+
+        // Closes the client socket and causes the thread to finish.
+        public void cancel() {
+            try {
+                HC05socket.close();
+            } catch (IOException e) {
+                Log.e("cancel socket", "Could not close the client socket", e);
+            }
+        }
     }
 }
-
