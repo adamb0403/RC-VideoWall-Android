@@ -11,6 +11,7 @@ import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothSocket;
 import android.companion.AssociationRequest;
 import android.companion.BluetoothDeviceFilter;
 import android.companion.CompanionDeviceManager;
@@ -51,6 +52,11 @@ public class MainActivity extends AppCompatActivity {
 
     private static final int SPCODE = 100;
     private static final int SELECT_DEVICE_REQUEST_CODE = 0;
+
+    private static BluetoothSocket HC05socket;
+    private static BluetoothDevice HC05device;
+
+    public static CreateConnectThread createConnectThread;
 
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
@@ -314,11 +320,11 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (requestCode == SELECT_DEVICE_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
-                BluetoothDevice deviceToPair = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
+                HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
                 Toast.makeText(MainActivity.this, "Successful connection", Toast.LENGTH_SHORT).show();
 
-                if (deviceToPair != null) {
-                    deviceToPair.createBond();
+                if (HC05device != null) {
+                    HC05device.createBond();
                     // ... Continue interacting with the paired device.
                 }
             }
@@ -378,4 +384,9 @@ public class MainActivity extends AppCompatActivity {
 //        imageV.setImageBitmap(testBitmap);
 
     }
+
+    public static class CreateConnectThread extends Thread {
+
+    }
 }
+
