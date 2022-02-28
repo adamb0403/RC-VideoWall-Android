@@ -534,6 +534,8 @@ public class MainActivity extends AppCompatActivity {
         // Call this from the main activity to send data to the remote device.
         public void write() {
             try {
+                byte c = (byte) IMAGE_COUNTER;
+                mmOutStream.write(c);
                 byte b = (byte) SLIDESHOW_TIME;
                 mmOutStream.write(b);
 
