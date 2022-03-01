@@ -268,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
 //    }
 
     public void updateImageSelectedText() {
-//        tv.setText("Images Selected: " + IMAGE_COUNTER);
+        tv.setText("Images Selected: " + IMAGE_COUNTER);
     }
 
     public void setClearSelection(View v) {
@@ -397,11 +397,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         textImage[IMAGE_COUNTER] = Builder.toString();
-        byte[] bytes = textImage[0].getBytes();
-        int length = bytes.length;
-
-        tv.setText("Images Selected: " + IMAGE_COUNTER + length);
-
     }
 
     public void editGif(Uri uri) {
@@ -546,14 +541,19 @@ public class MainActivity extends AppCompatActivity {
 
                 for (int x=0; x<IMAGE_COUNTER; x++) {
                     byte[] bytes = textImage[x].getBytes();
-                    mmOutStream.write(bytes);
+                    byte[][] chunked_image = divideArray(bytes, 64); // 48 chunks
+
+                    for (byte[] value : chunked_image) {
+                        mmOutStream.write(value);
+                        Thread.sleep(500);
+                    }
                 }
 
                 // Share the sent message with the UI activity.
 //                Message writtenMsg = handler.obtainMessage(
 //                        MessageConstants.MESSAGE_WRITE, -1, -1, mmBuffer);
 //                writtenMsg.sendToTarget();
-            } catch (IOException e) {
+            } catch (IOException | InterruptedException e) {
                 Log.e("connectedthreadstuff", "Error occurred when sending data", e);
 
                 // Send a failure message back to the activity.
@@ -565,6 +565,21 @@ public class MainActivity extends AppCompatActivity {
 //                writeErrorMsg.setData(bundle);
 //                handler.sendMessage(writeErrorMsg);
             }
+        }
+
+        public static byte[][] divideArray(byte[] source, int chunksize) {
+
+
+            byte[][] return_chunks = new byte[(int)Math.ceil(source.length / (double)chunksize)][chunksize];
+
+            int start = 0;
+
+            for(int i = 0; i < return_chunks.length; i++) {
+                return_chunks[i] = Arrays.copyOfRange(source, start, start + chunksize);
+                start += chunksize ;
+            }
+
+            return return_chunks;
         }
 
         // Call this method from the main activity to shut down the connection.
