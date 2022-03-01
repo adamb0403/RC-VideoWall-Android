@@ -268,7 +268,7 @@ public class MainActivity extends AppCompatActivity {
 //    }
 
     public void updateImageSelectedText() {
-        tv.setText("Images Selected: " + IMAGE_COUNTER);
+//        tv.setText("Images Selected: " + IMAGE_COUNTER);
     }
 
     public void setClearSelection(View v) {
@@ -397,6 +397,11 @@ public class MainActivity extends AppCompatActivity {
         }
 
         textImage[IMAGE_COUNTER] = Builder.toString();
+        byte[] bytes = textImage[0].getBytes();
+        int length = bytes.length;
+
+        tv.setText("Images Selected: " + IMAGE_COUNTER + length);
+
     }
 
     public void editGif(Uri uri) {
