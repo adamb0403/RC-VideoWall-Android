@@ -63,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
     private static BluetoothSocket HC05socket;
     public static Handler handler;
 
-
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
     static String[] textImage = new String[100];
@@ -71,7 +70,6 @@ public class MainActivity extends AppCompatActivity {
     ImageView imageV;
     TextView tv, btText;
 
-    @SuppressLint("MissingPermission") // Wants BLUETOOTH_CONNECT permission for Android 12
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
