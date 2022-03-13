@@ -62,11 +62,14 @@ public class MainActivity extends AppCompatActivity {
     private static final int SELECT_DEVICE_REQUEST_CODE = 0;
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
 
+    private static BluetoothDevice HC05device;
     private static BluetoothSocket HC05socket;
     public static Handler handler;
 
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
+    static boolean BT_CONNECT_CHECK;
+    static boolean UPLOAD_CHECK;
     static String[] textImage = new String[100];
     Button getimagebtn, getgifbtn, storage, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
@@ -76,8 +79,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-
 
         mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
 
@@ -127,7 +128,7 @@ public class MainActivity extends AppCompatActivity {
         disconnectbtn=findViewById(R.id.disconnectBt);
         sendBluetooth=findViewById(R.id.sendBT);
 
-
+        sendBluetooth.setEnabled(false);
         updateImageSelectedText();
 
         ActivityResultLauncher<Intent> getImage = registerForActivityResult(
@@ -141,6 +142,9 @@ public class MainActivity extends AppCompatActivity {
                         obtainPixels(image, 0, 0);
                         IMAGE_COUNTER++;
                         updateImageSelectedText();
+                        getgifbtn.setEnabled(false);
+                        sendBluetooth.setEnabled(true);
+                        bluetoothButtonCheck();
                     }
                 });
 
@@ -154,6 +158,9 @@ public class MainActivity extends AppCompatActivity {
                         editGif(uri);
                         updateImageSelectedText();
                         SLIDESHOW_TIME = 0;
+                        getimagebtn.setEnabled(false);
+                        sendBluetooth.setEnabled(true);
+                        bluetoothButtonCheck();
                     }
                 });
 
@@ -161,6 +168,11 @@ public class MainActivity extends AppCompatActivity {
 
         btbtn.setOnClickListener(view -> {
             companionDeviceManager();
+        });
+
+        disconnectbtn.setOnClickListener(view -> {
+            new CreateConnectThread(HC05device).cancel();
+
         });
 
 //        storage.setOnClickListener(view -> checkStoragePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, SPCODE));
@@ -179,6 +191,9 @@ public class MainActivity extends AppCompatActivity {
 
         clearSel.setOnClickListener(view -> {
             setClearSelection();
+            getimagebtn.setEnabled(true);
+            getgifbtn.setEnabled(true);
+            bluetoothButtonCheck();
         });
 
         sendBluetooth.setOnClickListener(view -> {
@@ -277,6 +292,15 @@ public class MainActivity extends AppCompatActivity {
 //        }
 //    }
 
+    public void bluetoothButtonCheck() {
+        if (HC05socket != null  && textImage[0] != null) {
+            sendBluetooth.setEnabled(true);
+        }
+        else {
+            sendBluetooth.setEnabled(false);
+        }
+    }
+
     public void updateImageSelectedText() {
         tv.setText("Images Selected: " + IMAGE_COUNTER);
     }
@@ -359,7 +383,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (requestCode == SELECT_DEVICE_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
-                BluetoothDevice HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
+                HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
 
                 if (HC05device != null) {
                     HC05device.createBond();
@@ -414,7 +438,6 @@ public class MainActivity extends AppCompatActivity {
             case 1:
                 textImage[gifcounter] = Builder.toString();
         }
-
     }
 
     public void editGif(Uri uri) {
@@ -501,12 +524,14 @@ public class MainActivity extends AppCompatActivity {
                 HC05socket.connect();
                 Log.e("Status", "Device connected");
                 handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
+                MainActivity mainActivity = new MainActivity();
+                mainActivity.bluetoothButtonCheck();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and return.
                 try {
                     HC05socket.close();
                     Log.e("Status", "Cannot connect to device");
-//                    handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
+                    handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
                 } catch (IOException closeException) {
                     Log.e("run socket", "Could not close the client socket", closeException);
                 }
