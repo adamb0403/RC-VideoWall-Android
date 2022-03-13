@@ -7,7 +7,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -15,6 +14,7 @@ import android.bluetooth.BluetoothSocket;
 import android.companion.AssociationRequest;
 import android.companion.BluetoothDeviceFilter;
 import android.companion.CompanionDeviceManager;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
@@ -22,11 +22,9 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
-import android.os.ParcelUuid;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Button;
 import android.content.Intent;
@@ -39,7 +37,11 @@ import android.graphics.Color;
 import android.widget.Toast;
 import android.widget.NumberPicker;
 
-import java.io.FileNotFoundException;
+import com.bumptech.glide.Glide;
+import com.waynejo.androidndkgif.GifDecoder;
+
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -74,6 +76,8 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+
 
         mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
 
@@ -372,7 +376,6 @@ public class MainActivity extends AppCompatActivity {
 
         Bitmap resized = Bitmap.createScaledBitmap(bitmap, 32,32, false);
         imageV.setImageBitmap(bitmap);
-
         return resized;
     }
 
@@ -398,19 +401,43 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void editGif(Uri uri) {
-        String path = uri.getPath();
-        TextView tv=findViewById(R.id.textView);
-        tv.setText(path);
-
-        try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        GifDecoder gifDecoder = new GifDecoder();
+        boolean isSucceeded = gifDecoder.load(returnFilepath(this, uri));
+        if (isSucceeded) {
+            for (int i = 0; i < gifDecoder.frameNum(); ++i) {
+                Bitmap bitmap = gifDecoder.frame(i);
+            }
         }
 
-//        Bitmap testBitmap = BitmapFactory.decodeFile(uri.getPath());
-//        imageV.setImageBitmap(testBitmap);
+        Glide.with(this)
+                .asGif()
+                .load(uri)
+                .into(imageV);
+    }
 
+    public static String returnFilepath(Context context, Uri uri) {
+        final ContentResolver contentResolver = context.getContentResolver();
+        if (contentResolver == null)
+            return null;
+
+        // Create file path inside app's data dir
+        String filePath = context.getApplicationInfo().dataDir + File.separator + "temp_file";
+        File file = new File(filePath);
+        try {
+            InputStream inputStream = contentResolver.openInputStream(uri);
+            if (inputStream == null)
+                return null;
+            OutputStream outputStream = new FileOutputStream(file);
+            byte[] buf = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buf)) > 0)
+                outputStream.write(buf, 0, len);
+            outputStream.close();
+            inputStream.close();
+        } catch (IOException ignore) {
+            return null;
+        }
+        return file.getAbsolutePath();
     }
 
 
