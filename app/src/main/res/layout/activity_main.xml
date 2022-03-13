@@ -76,7 +76,6 @@
         android:layout_width="106dp"
         android:layout_height="58dp"
         android:layout_marginBottom="28dp"
-        android:onClick="setClearSelection"
         android:text="CLEAR SELECTION"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"

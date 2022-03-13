@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
     static String[] textImage = new String[100];
-    Button getimagebtn, getgifbtn, storage, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
+    Button getimagebtn, getgifbtn, storage, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
 
@@ -116,6 +116,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         storage = findViewById(R.id.storage);
+        clearSel = findViewById(R.id.clearSelection);
         getimagebtn=findViewById(R.id.getimagebutton);
         getgifbtn=findViewById(R.id.getgifbutton);
         imageV=findViewById(R.id.imageView);
@@ -136,10 +137,10 @@ public class MainActivity extends AppCompatActivity {
                         Intent data = result.getData();
                         Uri uri = data.getData();
                         Bitmap image = obtainBitmap(uri);
-                        obtainPixels(image);
+                        image = resizeBitmap(image);
+                        obtainPixels(image, 0, 0);
                         IMAGE_COUNTER++;
                         updateImageSelectedText();
-//                            BLUETOOTH COMMUNICATION!!!!!!
                     }
                 });
 
@@ -149,7 +150,10 @@ public class MainActivity extends AppCompatActivity {
                     if (result.getResultCode() == Activity.RESULT_OK) {
                         Intent data = result.getData();
                         Uri uri = data.getData();
+                        setClearSelection();
                         editGif(uri);
+                        updateImageSelectedText();
+                        SLIDESHOW_TIME = 0;
                     }
                 });
 
@@ -171,6 +175,10 @@ public class MainActivity extends AppCompatActivity {
             Intent intent=new Intent(Intent.ACTION_GET_CONTENT);
             intent.setType("image/gif");
             getGif.launch(intent);
+        });
+
+        clearSel.setOnClickListener(view -> {
+            setClearSelection();
         });
 
         sendBluetooth.setOnClickListener(view -> {
@@ -273,7 +281,7 @@ public class MainActivity extends AppCompatActivity {
         tv.setText("Images Selected: " + IMAGE_COUNTER);
     }
 
-    public void setClearSelection(View v) {
+    public void setClearSelection() {
         IMAGE_COUNTER = 0;
         Arrays.fill(textImage, null);
         imageV.setImageDrawable(null);
@@ -373,13 +381,15 @@ public class MainActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
-        Bitmap resized = Bitmap.createScaledBitmap(bitmap, 32,32, false);
         imageV.setImageBitmap(bitmap);
-        return resized;
+        return bitmap;
     }
 
-    public void obtainPixels (Bitmap image) {
+    public Bitmap resizeBitmap (Bitmap bitmap) {
+        return Bitmap.createScaledBitmap(bitmap, 32,32, false);
+    }
+
+    public void obtainPixels (Bitmap image, int z, int gifcounter) {
         StringBuilder Builder = new StringBuilder();
 
         for (int x=0; x<32; x++) {
@@ -397,7 +407,14 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        textImage[IMAGE_COUNTER] = Builder.toString();
+        switch (z) {
+            case 0:
+                textImage[IMAGE_COUNTER] = Builder.toString();
+                break;
+            case 1:
+                textImage[gifcounter] = Builder.toString();
+        }
+
     }
 
     public void editGif(Uri uri) {
@@ -406,7 +423,10 @@ public class MainActivity extends AppCompatActivity {
         if (isSucceeded) {
             for (int i = 0; i < gifDecoder.frameNum(); ++i) {
                 Bitmap bitmap = gifDecoder.frame(i);
+                bitmap = resizeBitmap(bitmap);
+                obtainPixels(bitmap, 1, i);
             }
+            IMAGE_COUNTER = gifDecoder.frameNum();
         }
 
         Glide.with(this)
@@ -415,6 +435,8 @@ public class MainActivity extends AppCompatActivity {
                 .into(imageV);
     }
 
+    // Method to obtain the file path from a uri, taken from "Attaullah" via stackOverflow.
+    // Copies the file from uri into the apps data directory, then obtains the file path from that.
     public static String returnFilepath(Context context, Uri uri) {
         final ContentResolver contentResolver = context.getContentResolver();
         if (contentResolver == null)
