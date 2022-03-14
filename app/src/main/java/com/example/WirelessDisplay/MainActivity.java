@@ -62,7 +62,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int SELECT_DEVICE_REQUEST_CODE = 0;
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
 
-    private static BluetoothDevice HC05device;
+//    private static BluetoothDevice HC05device;
     private static BluetoothSocket HC05socket;
     public static Handler handler;
 
@@ -144,7 +144,7 @@ public class MainActivity extends AppCompatActivity {
                         updateImageSelectedText();
                         getgifbtn.setEnabled(false);
                         sendBluetooth.setEnabled(true);
-                        bluetoothButtonCheck();
+//                        bluetoothButtonCheck();
                     }
                 });
 
@@ -160,7 +160,7 @@ public class MainActivity extends AppCompatActivity {
                         SLIDESHOW_TIME = 0;
                         getimagebtn.setEnabled(false);
                         sendBluetooth.setEnabled(true);
-                        bluetoothButtonCheck();
+//                        bluetoothButtonCheck();
                     }
                 });
 
@@ -170,10 +170,10 @@ public class MainActivity extends AppCompatActivity {
             companionDeviceManager();
         });
 
-        disconnectbtn.setOnClickListener(view -> {
-            new CreateConnectThread(HC05device).cancel();
-
-        });
+//        disconnectbtn.setOnClickListener(view -> {
+//            new CreateConnectThread(HC05device).cancel();
+//
+//        });
 
 //        storage.setOnClickListener(view -> checkStoragePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, SPCODE));
 
@@ -193,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
             setClearSelection();
             getimagebtn.setEnabled(true);
             getgifbtn.setEnabled(true);
-            bluetoothButtonCheck();
+//            bluetoothButtonCheck();
         });
 
         sendBluetooth.setOnClickListener(view -> {
@@ -292,14 +292,14 @@ public class MainActivity extends AppCompatActivity {
 //        }
 //    }
 
-    public void bluetoothButtonCheck() {
-        if (HC05socket != null  && textImage[0] != null) {
-            sendBluetooth.setEnabled(true);
-        }
-        else {
-            sendBluetooth.setEnabled(false);
-        }
-    }
+//    public void bluetoothButtonCheck() {
+//        if (HC05device != null  && textImage[0] != null) {
+//            sendBluetooth.setEnabled(true);
+//        }
+//        else {
+//            sendBluetooth.setEnabled(false);
+//        }
+//    }
 
     public void updateImageSelectedText() {
         tv.setText("Images Selected: " + IMAGE_COUNTER);
@@ -383,7 +383,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (requestCode == SELECT_DEVICE_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
-                HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
+                BluetoothDevice HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
 
                 if (HC05device != null) {
                     HC05device.createBond();
@@ -524,8 +524,8 @@ public class MainActivity extends AppCompatActivity {
                 HC05socket.connect();
                 Log.e("Status", "Device connected");
                 handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
-                MainActivity mainActivity = new MainActivity();
-                mainActivity.bluetoothButtonCheck();
+//                MainActivity mainActivity = new MainActivity();
+//                mainActivity.bluetoothButtonCheck();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and return.
                 try {
@@ -617,7 +617,7 @@ public class MainActivity extends AppCompatActivity {
 
                     for (byte[] value : chunked_image) {
                         mmOutStream.write(value);
-                        Thread.sleep(500);
+                        Thread.sleep(300);
                     }
                 }
 
