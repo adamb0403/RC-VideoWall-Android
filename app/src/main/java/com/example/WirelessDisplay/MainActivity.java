@@ -61,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int SPCODE = 100;
     private static final int SELECT_DEVICE_REQUEST_CODE = 0;
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
+    private final static int MESSAGE_READ = 2;
 
 //    private static BluetoothDevice HC05device;
     private static BluetoothSocket HC05socket;
@@ -217,6 +218,10 @@ public class MainActivity extends AppCompatActivity {
                                 disconnectbtn.setEnabled(false);
                         }
                         break;
+
+                    case MESSAGE_READ:
+                        String arduinomsg = msg.obj.toString();
+                        tv.setText(arduinomsg);
                 }
             }
         };
@@ -525,7 +530,7 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("Status", "Device connected");
                 handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
 //                MainActivity mainActivity = new MainActivity();
-//                mainActivity.bluetoothButtonCheck();
+//                mainActivity.bluetoothButStonCheck();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and return.
                 try {
@@ -558,7 +563,7 @@ public class MainActivity extends AppCompatActivity {
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
-        private byte[] mmBuffer; // mmBuffer store for the stream
+        static boolean RECIEVE_CONFIRM;
 
         public ConnectedThread(BluetoothSocket socket) {
             mmSocket = socket;
@@ -583,19 +588,23 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void run() {
-            mmBuffer = new byte[1024];
-            int numBytes; // bytes returned from read()
-
+            byte[] buffer = new byte[1024]; // buffer store for the stream
+            int bytes = 0; // bytes returned from read()
             // Keep listening to the InputStream until an exception occurs.
             while (true) {
                 try {
                     // Read from the InputStream.
-                    numBytes = mmInStream.read(mmBuffer);
-                    // Send the obtained bytes to the UI activity.
-//                    Message readMsg = handler.obtainMessage(
-//                            MessageConstants.MESSAGE_READ, numBytes, -1,
-//                            mmBuffer);
-//                    readMsg.sendToTarget();
+                    if ((byte) mmInStream.read() > 0) {
+                        RECIEVE_CONFIRM = true;
+                    }
+//                    buffer[bytes] = (byte) mmInStream.read();
+//                    if (buffer[bytes] == '\n') {
+//                        String readMessage = new String(buffer, 0, bytes);
+//                        // Send the obtained bytes to the UI activity.
+//                        handler.obtainMessage(MESSAGE_READ, readMessage).sendToTarget();
+//                    }
+//                    else  {
+//                        bytes++;
                 } catch (IOException e) {
                     Log.d("connectedthreadstuff", "Input stream was disconnected", e);
                     break;
@@ -606,20 +615,21 @@ public class MainActivity extends AppCompatActivity {
         // Call this from the main activity to send data to the remote device.
         public void write() {
             try {
-                byte c = (byte) IMAGE_COUNTER;
-                mmOutStream.write(c);
-                byte b = (byte) SLIDESHOW_TIME;
-                mmOutStream.write(b);
+                mmOutStream.write((byte) IMAGE_COUNTER);
+                mmOutStream.write((byte) SLIDESHOW_TIME);
 
                 Thread.sleep(1000);
+                RECIEVE_CONFIRM = true;
                 for (int x=0; x<IMAGE_COUNTER; x++) {
                     byte[] bytes = textImage[x].getBytes();
                     byte[][] chunked_image = divideArray(bytes, 64); // 48 chunks
 
-                    for (byte[] value : chunked_image) {
-                        mmOutStream.write(value);
-                        Thread.sleep(100);
-                    }
+                    for (byte[] value : chunked_image)
+                        while (RECIEVE_CONFIRM = true) {
+                            mmOutStream.write(value);
+//                          Thread.sleep(100);
+                            RECIEVE_CONFIRM = false;
+                        }
                 }
 
                 // Share the sent message with the UI activity.
