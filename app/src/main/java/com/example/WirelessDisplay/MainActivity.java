@@ -58,18 +58,17 @@ public class MainActivity extends AppCompatActivity {
     private boolean isLocationPermissionGranted = false;
 //    private boolean isConnectPermissionGranted = false;
 
-    private static final int SPCODE = 100;
     private static final int SELECT_DEVICE_REQUEST_CODE = 0;
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
     private final static int MESSAGE_READ = 2;
+    private final static int BT_WRITE = 3;
+    private final static int BT_CANCEL = 4;
 
     private static BluetoothSocket HC05socket;
     public static Handler handler;
 
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
-    static boolean BT_CONNECT_CHECK;
-    static boolean UPLOAD_CHECK;
     static String[] textImage = new String[100];
     Button getimagebtn, getgifbtn, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
@@ -196,8 +195,6 @@ public class MainActivity extends AppCompatActivity {
             bluetoothButtonCheck();
         });
 
-
-
         handler = new Handler(Looper.getMainLooper()) {
             @Override
             public void handleMessage(Message msg) {
@@ -206,19 +203,56 @@ public class MainActivity extends AppCompatActivity {
                         switch (msg.arg1) {
                             case 1:
                                 btText.setText("Bluetooth: Connected");
+                                Toast.makeText(MainActivity.this, "Successfully connected bluetooth.", Toast.LENGTH_SHORT).show();
                                 btbtn.setEnabled(false);
                                 disconnectbtn.setEnabled(true);
+                                bluetoothButtonCheck();
                                 break;
                             case -1:
                                 btText.setText("Bluetooth: Connection failed");
+                                Toast.makeText(MainActivity.this, "Could not initiate bluetooth connection.", Toast.LENGTH_SHORT).show();
                                 btbtn.setEnabled(true);
                                 disconnectbtn.setEnabled(false);
                         }
                         break;
 
                     case MESSAGE_READ:
-                        String arduinomsg = msg.obj.toString();
-                        tv.setText(arduinomsg);
+                        switch (msg.arg1) {
+                            case 1:
+                                String arduinomsg = msg.obj.toString();
+                                tv.setText(arduinomsg);
+                                break;
+                            case -1:
+
+                                break;
+                        }
+                        break;
+
+                    case BT_WRITE:
+                        switch (msg.arg1) {
+                            case 1:
+
+                                break;
+                            case -1:
+                                Toast.makeText(MainActivity.this, "Error occurred when sending data... Closing bluetooth connection", Toast.LENGTH_LONG).show();
+                                new ConnectedThread(HC05socket).cancel();
+                                break;
+                        }
+                        break;
+
+                    case BT_CANCEL:
+                        switch (msg.arg1) {
+                            case 1:
+                                btText.setText("Bluetooth: Disconnected");
+                                Toast.makeText(MainActivity.this, "Successfully disconnected bluetooth.", Toast.LENGTH_SHORT).show();
+                                btbtn.setEnabled(true);
+                                disconnectbtn.setEnabled(false);
+                                bluetoothButtonCheck();
+                                break;
+                            case -1:
+                                Toast.makeText(MainActivity.this, "Could not disconnect bluetooth.", Toast.LENGTH_SHORT).show();
+                        }
+                        break;
                 }
             }
         };
@@ -266,8 +300,6 @@ public class MainActivity extends AppCompatActivity {
             mPermissionResultLauncher.launch(permissionRequest.toArray(new String[0]));
 
         }
-
-
     }
 
     public void bluetoothButtonCheck() {
@@ -501,15 +533,13 @@ public class MainActivity extends AppCompatActivity {
                 // until it succeeds or throws an exception.
                 HC05socket.connect();
                 Log.e("Status", "Device connected");
-                handler.obtainMessage(CONNECTING_STATUS, 1, -1).sendToTarget();
-//                MainActivity mainActivity = new MainActivity();
-//                mainActivity.bluetoothButStonCheck();
+                handler.obtainMessage(CONNECTING_STATUS, 1, 1).sendToTarget();
             } catch (IOException connectException) {
                 // Unable to connect; close the socket and return.
                 try {
                     HC05socket.close();
                     Log.e("Status", "Cannot connect to device");
-                    handler.obtainMessage(CONNECTING_STATUS, -1, -1).sendToTarget();
+                    handler.obtainMessage(CONNECTING_STATUS, -1, 1).sendToTarget();
                 } catch (IOException closeException) {
                     Log.e("run socket", "Could not close the client socket", closeException);
                 }
@@ -568,7 +598,6 @@ public class MainActivity extends AppCompatActivity {
                     if ((byte) mmInStream.read() > 0) {
                         RECIEVE_CONFIRM = true;
                     }
-//                    handler.obtainMessage(MESSAGE_READ, readMessage).sendToTarget();
 
                 } catch (IOException e) {
                     Log.d("connectedthreadstuff", "Input stream was disconnected", e);
@@ -603,15 +632,7 @@ public class MainActivity extends AppCompatActivity {
 //                writtenMsg.sendToTarget();
             } catch (IOException | InterruptedException e) {
                 Log.e("connectedthreadstuff", "Error occurred when sending data", e);
-
-                // Send a failure message back to the activity.
-//                Message writeErrorMsg =
-//                        handler.obtainMessage(MessageConstants.MESSAGE_TOAST);
-//                Bundle bundle = new Bundle();
-//                bundle.putString("toast",
-//                        "Couldn't send data to the other device");
-//                writeErrorMsg.setData(bundle);
-//                handler.sendMessage(writeErrorMsg);
+                handler.obtainMessage(BT_WRITE, -1, 1).sendToTarget();
             }
         }
 
@@ -634,8 +655,10 @@ public class MainActivity extends AppCompatActivity {
         public void cancel() {
             try {
                 mmSocket.close();
+                handler.obtainMessage(BT_CANCEL, 1, 1).sendToTarget();
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Could not close the connect socket", e);
+                handler.obtainMessage(BT_CANCEL, -1, 1).sendToTarget();
             }
         }
     }
