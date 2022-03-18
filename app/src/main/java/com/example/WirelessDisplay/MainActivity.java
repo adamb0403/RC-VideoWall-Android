@@ -563,7 +563,7 @@ public class MainActivity extends AppCompatActivity {
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
-        static boolean RECIEVE_CONFIRM;
+        static volatile boolean RECIEVE_CONFIRM;
 
         public ConnectedThread(BluetoothSocket socket) {
             mmSocket = socket;
@@ -624,12 +624,12 @@ public class MainActivity extends AppCompatActivity {
                     byte[] bytes = textImage[x].getBytes();
                     byte[][] chunked_image = divideArray(bytes, 64); // 48 chunks
 
-                    for (byte[] value : chunked_image)
-                        while (RECIEVE_CONFIRM = true) {
-                            mmOutStream.write(value);
+                    for (byte[] value : chunked_image) {
+                        while (!RECIEVE_CONFIRM) {}
+                        mmOutStream.write(value);
 //                          Thread.sleep(100);
-                            RECIEVE_CONFIRM = false;
-                        }
+                        RECIEVE_CONFIRM = false;
+                    }
                 }
 
                 // Share the sent message with the UI activity.
