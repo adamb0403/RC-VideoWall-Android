@@ -63,7 +63,6 @@ public class MainActivity extends AppCompatActivity {
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
     private final static int MESSAGE_READ = 2;
 
-//    private static BluetoothDevice HC05device;
     private static BluetoothSocket HC05socket;
     public static Handler handler;
 
@@ -72,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
     static boolean BT_CONNECT_CHECK;
     static boolean UPLOAD_CHECK;
     static String[] textImage = new String[100];
-    Button getimagebtn, getgifbtn, storage, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
+    Button getimagebtn, getgifbtn, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
 
@@ -117,8 +116,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        storage = findViewById(R.id.storage);
-        clearSel = findViewById(R.id.clearSelection);
+        clearSel=findViewById(R.id.clearSelection);
         getimagebtn=findViewById(R.id.getimagebutton);
         getgifbtn=findViewById(R.id.getgifbutton);
         imageV=findViewById(R.id.imageView);
@@ -130,7 +128,7 @@ public class MainActivity extends AppCompatActivity {
         sendBluetooth=findViewById(R.id.sendBT);
 
         sendBluetooth.setEnabled(false);
-        updateImageSelectedText();
+        updateImageSelectedText(0);
 
         ActivityResultLauncher<Intent> getImage = registerForActivityResult(
                 new ActivityResultContracts.StartActivityForResult(),
@@ -142,10 +140,10 @@ public class MainActivity extends AppCompatActivity {
                         image = resizeBitmap(image);
                         obtainPixels(image, 0, 0);
                         IMAGE_COUNTER++;
-                        updateImageSelectedText();
+                        updateImageSelectedText(0);
                         getgifbtn.setEnabled(false);
-                        sendBluetooth.setEnabled(true);
-//                        bluetoothButtonCheck();
+//                        sendBluetooth.setEnabled(true);
+                        bluetoothButtonCheck();
                     }
                 });
 
@@ -157,26 +155,13 @@ public class MainActivity extends AppCompatActivity {
                         Uri uri = data.getData();
                         setClearSelection();
                         editGif(uri);
-                        updateImageSelectedText();
+                        updateImageSelectedText(1);
                         SLIDESHOW_TIME = 0;
                         getimagebtn.setEnabled(false);
-                        sendBluetooth.setEnabled(true);
-//                        bluetoothButtonCheck();
+//                        sendBluetooth.setEnabled(true);
+                        bluetoothButtonCheck();
                     }
                 });
-
-        slideshowTime.setOnClickListener(view -> setSlideshowTime());
-
-        btbtn.setOnClickListener(view -> {
-            companionDeviceManager();
-        });
-
-//        disconnectbtn.setOnClickListener(view -> {
-//            new CreateConnectThread(HC05device).cancel();
-//
-//        });
-
-//        storage.setOnClickListener(view -> checkStoragePermission(Manifest.permission.WRITE_EXTERNAL_STORAGE, SPCODE));
 
         getimagebtn.setOnClickListener(view -> {
             Intent intent=new Intent(Intent.ACTION_GET_CONTENT);
@@ -190,16 +175,28 @@ public class MainActivity extends AppCompatActivity {
             getGif.launch(intent);
         });
 
+        sendBluetooth.setOnClickListener(view -> {
+            new ConnectedThread(HC05socket).write();
+        });
+
+        btbtn.setOnClickListener(view -> {
+            companionDeviceManager();
+        });
+
+        disconnectbtn.setOnClickListener(view -> {
+            new ConnectedThread(HC05socket).cancel();
+        });
+
+        slideshowTime.setOnClickListener(view -> setSlideshowTime());
+
         clearSel.setOnClickListener(view -> {
             setClearSelection();
             getimagebtn.setEnabled(true);
             getgifbtn.setEnabled(true);
-//            bluetoothButtonCheck();
+            bluetoothButtonCheck();
         });
 
-        sendBluetooth.setOnClickListener(view -> {
-            new ConnectedThread(HC05socket).write();
-        });
+
 
         handler = new Handler(Looper.getMainLooper()) {
             @Override
@@ -273,48 +270,24 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-//    public void checkStoragePermission(String permission, int requestCode)
-//    {
-//        if (ContextCompat.checkSelfPermission(MainActivity.this, permission) == PackageManager.PERMISSION_DENIED) {
-//
-//            ActivityCompat.requestPermissions(MainActivity.this, new String[] { permission }, requestCode);
-//        }
-//        else {
-//            Toast.makeText(MainActivity.this, "Permission already granted", Toast.LENGTH_SHORT).show();
-//        }
-//    }
-//
-//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-//    {
-//        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-//
-//        if (requestCode == SPCODE) {
-//            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                Toast.makeText(MainActivity.this, "Storage Permission Granted", Toast.LENGTH_SHORT).show();
-//            } else {
-//                Toast.makeText(MainActivity.this, "Storage Permission Denied", Toast.LENGTH_SHORT).show();
-//            }
-//        }
-//    }
+    public void bluetoothButtonCheck() {
+        sendBluetooth.setEnabled(HC05socket != null && textImage[0] != null);
+    }
 
-//    public void bluetoothButtonCheck() {
-//        if (HC05device != null  && textImage[0] != null) {
-//            sendBluetooth.setEnabled(true);
-//        }
-//        else {
-//            sendBluetooth.setEnabled(false);
-//        }
-//    }
-
-    public void updateImageSelectedText() {
-        tv.setText("Images Selected: " + IMAGE_COUNTER);
+    public void updateImageSelectedText(int x) {
+        switch (x) {
+            case 0:
+                tv.setText("Images Selected: " + IMAGE_COUNTER);
+            case 1:
+                tv.setText("Frames: " + IMAGE_COUNTER);
+        }
     }
 
     public void setClearSelection() {
         IMAGE_COUNTER = 0;
         Arrays.fill(textImage, null);
         imageV.setImageDrawable(null);
-        updateImageSelectedText();
+        updateImageSelectedText(0);
     }
 
     public void setSlideshowTime() {
@@ -392,7 +365,7 @@ public class MainActivity extends AppCompatActivity {
 
                 if (HC05device != null) {
                     HC05device.createBond();
-                    Toast.makeText(MainActivity.this, "Successful connection", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Initiating connection...", Toast.LENGTH_SHORT).show();
                     // ... Continue interacting with the paired device.
                     new CreateConnectThread(HC05device).start();
                 }
@@ -464,7 +437,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // Method to obtain the file path from a uri, taken from "Attaullah" via stackOverflow.
-    // Copies the file from uri into the apps data directory, then obtains the file path from that.
+    // Copies the file from uri into the apps data directory, then obtains the file path from it.
     public static String returnFilepath(Context context, Uri uri) {
         final ContentResolver contentResolver = context.getContentResolver();
         if (contentResolver == null)
@@ -588,8 +561,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         public void run() {
-            byte[] buffer = new byte[1024]; // buffer store for the stream
-            int bytes = 0; // bytes returned from read()
             // Keep listening to the InputStream until an exception occurs.
             while (true) {
                 try {
@@ -597,14 +568,8 @@ public class MainActivity extends AppCompatActivity {
                     if ((byte) mmInStream.read() > 0) {
                         RECIEVE_CONFIRM = true;
                     }
-//                    buffer[bytes] = (byte) mmInStream.read();
-//                    if (buffer[bytes] == '\n') {
-//                        String readMessage = new String(buffer, 0, bytes);
-//                        // Send the obtained bytes to the UI activity.
-//                        handler.obtainMessage(MESSAGE_READ, readMessage).sendToTarget();
-//                    }
-//                    else  {
-//                        bytes++;
+//                    handler.obtainMessage(MESSAGE_READ, readMessage).sendToTarget();
+
                 } catch (IOException e) {
                     Log.d("connectedthreadstuff", "Input stream was disconnected", e);
                     break;
