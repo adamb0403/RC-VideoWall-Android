@@ -69,7 +69,7 @@ public class MainActivity extends AppCompatActivity {
 
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
-    static String[] textImage = new String[100];
+    static String[] textImage = new String[200];
     Button getimagebtn, getgifbtn, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
@@ -213,6 +213,7 @@ public class MainActivity extends AppCompatActivity {
                                 Toast.makeText(MainActivity.this, "Could not initiate bluetooth connection.", Toast.LENGTH_SHORT).show();
                                 btbtn.setEnabled(true);
                                 disconnectbtn.setEnabled(false);
+                                break;
                         }
                         break;
 
@@ -251,6 +252,7 @@ public class MainActivity extends AppCompatActivity {
                                 break;
                             case -1:
                                 Toast.makeText(MainActivity.this, "Could not disconnect bluetooth.", Toast.LENGTH_SHORT).show();
+                                break;
                         }
                         break;
                 }
@@ -310,8 +312,10 @@ public class MainActivity extends AppCompatActivity {
         switch (x) {
             case 0:
                 tv.setText("Images Selected: " + IMAGE_COUNTER);
+                break;
             case 1:
                 tv.setText("Frames: " + IMAGE_COUNTER);
+                break;
         }
     }
 
