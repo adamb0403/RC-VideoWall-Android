@@ -570,7 +570,7 @@ public class MainActivity extends AppCompatActivity {
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
-        static volatile boolean RECIEVE_CONFIRM;
+        static volatile boolean RECIEVE_CONFIRM = false;
 
         public ConnectedThread(BluetoothSocket socket) {
             mmSocket = socket;
@@ -616,8 +616,8 @@ public class MainActivity extends AppCompatActivity {
                 mmOutStream.write((byte) IMAGE_COUNTER);
                 mmOutStream.write((byte) SLIDESHOW_TIME);
 
-                Thread.sleep(1000);
-                RECIEVE_CONFIRM = true;
+                while (!RECIEVE_CONFIRM) {}
+
                 for (int x=0; x<IMAGE_COUNTER; x++) {
                     byte[] bytes = textImage[x].getBytes();
                     byte[][] chunked_image = divideArray(bytes, 64); // 48 chunks
@@ -625,7 +625,6 @@ public class MainActivity extends AppCompatActivity {
                     for (byte[] value : chunked_image) {
                         while (!RECIEVE_CONFIRM) {}
                         mmOutStream.write(value);
-//                          Thread.sleep(100);
                         RECIEVE_CONFIRM = false;
                     }
                 }
@@ -634,24 +633,20 @@ public class MainActivity extends AppCompatActivity {
 //                Message writtenMsg = handler.obtainMessage(
 //                        MessageConstants.MESSAGE_WRITE, -1, -1, mmBuffer);
 //                writtenMsg.sendToTarget();
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Error occurred when sending data", e);
                 handler.obtainMessage(BT_WRITE, -1, 1).sendToTarget();
             }
         }
 
         public static byte[][] divideArray(byte[] source, int chunksize) {
-
-
             byte[][] return_chunks = new byte[(int)Math.ceil(source.length / (double)chunksize)][chunksize];
-
             int start = 0;
 
             for(int i = 0; i < return_chunks.length; i++) {
                 return_chunks[i] = Arrays.copyOfRange(source, start, start + chunksize);
                 start += chunksize ;
             }
-
             return return_chunks;
         }
 
@@ -659,6 +654,7 @@ public class MainActivity extends AppCompatActivity {
         public void cancel() {
             try {
                 mmSocket.close();
+                HC05socket = null;
                 handler.obtainMessage(BT_CANCEL, 1, 1).sendToTarget();
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Could not close the connect socket", e);
