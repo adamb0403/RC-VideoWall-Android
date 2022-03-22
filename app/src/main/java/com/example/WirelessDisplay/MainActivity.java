@@ -25,6 +25,8 @@ import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.WindowManager;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Button;
 import android.content.Intent;
@@ -63,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
     private final static int MESSAGE_READ = 2;
     private final static int BT_WRITE = 3;
     private final static int BT_CANCEL = 4;
+    private final static int PROGRESS_BAR = 5;
 
     private static BluetoothSocket HC05socket;
     public static Handler handler;
@@ -73,6 +76,7 @@ public class MainActivity extends AppCompatActivity {
     Button getimagebtn, getgifbtn, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
+    ProgressBar pBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -125,6 +129,9 @@ public class MainActivity extends AppCompatActivity {
         btbtn=findViewById(R.id.btbutton);
         disconnectbtn=findViewById(R.id.disconnectBt);
         sendBluetooth=findViewById(R.id.sendBT);
+        pBar=findViewById(R.id.progressBar);
+
+        pBar.setProgress(50, true);
 
         sendBluetooth.setEnabled(false);
         updateImageSelectedText(0);
@@ -175,6 +182,8 @@ public class MainActivity extends AppCompatActivity {
         });
 
         sendBluetooth.setOnClickListener(view -> {
+            getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
             new ConnectedThread(HC05socket).write();
         });
 
@@ -232,9 +241,11 @@ public class MainActivity extends AppCompatActivity {
                     case BT_WRITE:
                         switch (msg.arg1) {
                             case 1:
-
+                                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+                                Toast.makeText(MainActivity.this, "Successfully sent data.", Toast.LENGTH_LONG).show();
                                 break;
                             case -1:
+                                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
                                 Toast.makeText(MainActivity.this, "Error occurred when sending data... Closing bluetooth connection", Toast.LENGTH_LONG).show();
                                 new ConnectedThread(HC05socket).cancel();
                                 break;
@@ -255,6 +266,9 @@ public class MainActivity extends AppCompatActivity {
                                 break;
                         }
                         break;
+
+                    case PROGRESS_BAR:
+                        pBar.setProgress(msg.arg2, true);
                 }
             }
         };
@@ -627,12 +641,10 @@ public class MainActivity extends AppCompatActivity {
                         mmOutStream.write(value);
                         RECIEVE_CONFIRM = false;
                     }
+                    int progress = (x*100)/IMAGE_COUNTER;
+                    handler.obtainMessage(PROGRESS_BAR, 1, progress);
                 }
-
-                // Share the sent message with the UI activity.
-//                Message writtenMsg = handler.obtainMessage(
-//                        MessageConstants.MESSAGE_WRITE, -1, -1, mmBuffer);
-//                writtenMsg.sendToTarget();
+                handler.obtainMessage(BT_WRITE, 1, 1).sendToTarget();
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Error occurred when sending data", e);
                 handler.obtainMessage(BT_WRITE, -1, 1).sendToTarget();
