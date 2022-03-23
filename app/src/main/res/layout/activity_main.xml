@@ -49,26 +49,11 @@
         android:id="@+id/setSlideshowTime"
         android:layout_width="109dp"
         android:layout_height="66dp"
-        android:layout_marginBottom="24dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="28dp"
         android:text="Set Slideshow Time"
         android:textSize="12sp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/clearSelection"
-        app:layout_constraintHorizontal_bias="0.5"
-        app:layout_constraintStart_toEndOf="@+id/storage" />
-
-    <Button
-        android:id="@+id/storage"
-        android:layout_width="109dp"
-        android:layout_height="60dp"
-        android:layout_centerHorizontal="true"
-        android:layout_marginBottom="28dp"
-        android:padding="8dp"
-        android:text="Storage Permissions"
-        android:textSize="12sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.056"
         app:layout_constraintStart_toStartOf="parent" />
 
     <Button
