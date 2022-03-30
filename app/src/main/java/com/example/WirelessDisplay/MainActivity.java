@@ -148,7 +148,6 @@ public class MainActivity extends AppCompatActivity {
                         IMAGE_COUNTER++;
                         updateImageSelectedText(0);
                         getgifbtn.setEnabled(false);
-//                        sendBluetooth.setEnabled(true);
                         bluetoothButtonCheck();
                     }
                 });
@@ -164,7 +163,6 @@ public class MainActivity extends AppCompatActivity {
                         updateImageSelectedText(1);
                         SLIDESHOW_TIME = 0;
                         getimagebtn.setEnabled(false);
-//                        sendBluetooth.setEnabled(true);
                         bluetoothButtonCheck();
                     }
                 });
@@ -182,18 +180,19 @@ public class MainActivity extends AppCompatActivity {
         });
 
         sendBluetooth.setOnClickListener(view -> {
-            getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
-            new ConnectedThread(HC05socket).write();
+//            getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+//                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+            ConnectedThread c = new ConnectedThread(HC05socket);
+            c.writeId(IMAGE_COUNTER, SLIDESHOW_TIME);
+            for (int x=0; x<IMAGE_COUNTER; x++) {
+                c.write(textImage[x], x);
+            }
+            handler.obtainMessage(BT_WRITE, 1, 1).sendToTarget();
         });
 
-        btbtn.setOnClickListener(view -> {
-            companionDeviceManager();
-        });
+        btbtn.setOnClickListener(view -> companionDeviceManager());
 
-        disconnectbtn.setOnClickListener(view -> {
-            new ConnectedThread(HC05socket).cancel();
-        });
+        disconnectbtn.setOnClickListener(view -> new ConnectedThread(HC05socket).cancel());
 
         slideshowTime.setOnClickListener(view -> setSlideshowTime());
 
@@ -364,9 +363,9 @@ public class MainActivity extends AppCompatActivity {
 
     public void companionDeviceManager() {
         CompanionDeviceManager deviceManager =
-                (CompanionDeviceManager) getSystemService(
-                        Context.COMPANION_DEVICE_SERVICE
-                );
+            (CompanionDeviceManager) getSystemService(
+                Context.COMPANION_DEVICE_SERVICE
+            );
 
         // To skip filtering based on name and supported feature flags,
         // don't include calls to setNamePattern() and addServiceUuid(),
@@ -397,6 +396,7 @@ public class MainActivity extends AppCompatActivity {
                             startIntentSenderForResult(chooserLauncher, SELECT_DEVICE_REQUEST_CODE, null, 0, 0, 0);
                         } catch (IntentSender.SendIntentException e) {
                             // failed to send the intent
+                            Log.e("CompanionStuff", "Failed");
                         }
                     }
 
@@ -583,8 +583,8 @@ public class MainActivity extends AppCompatActivity {
 
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
+        static boolean RECEIVE_CONFIRM = false;
         private final OutputStream mmOutStream;
-        static volatile boolean RECIEVE_CONFIRM = false;
 
         public ConnectedThread(BluetoothSocket socket) {
             mmSocket = socket;
@@ -614,7 +614,7 @@ public class MainActivity extends AppCompatActivity {
                 try {
                     // Read from the InputStream.
                     if ((byte) mmInStream.read() > 0) {
-                        RECIEVE_CONFIRM = true;
+                        RECEIVE_CONFIRM = true;
                     }
 
                 } catch (IOException e) {
@@ -625,29 +625,34 @@ public class MainActivity extends AppCompatActivity {
         }
 
         // Call this from the main activity to send data to the remote device.
-        public void write() {
+        public void write(String string, int x) {
             try {
-                mmOutStream.write((byte) IMAGE_COUNTER);
-                mmOutStream.write((byte) SLIDESHOW_TIME);
+                while (!RECEIVE_CONFIRM) {}
 
-                while (!RECIEVE_CONFIRM) {}
+//                for (int x=0; x<IMAGE_COUNTER; x++) {
+                byte[] bytes = string.getBytes();
+                byte[][] chunked_image = divideArray(bytes, 64); // 48 chunks
 
-                for (int x=0; x<IMAGE_COUNTER; x++) {
-                    byte[] bytes = textImage[x].getBytes();
-                    byte[][] chunked_image = divideArray(bytes, 64); // 48 chunks
-
-                    for (byte[] value : chunked_image) {
-                        while (!RECIEVE_CONFIRM) {}
-                        mmOutStream.write(value);
-                        RECIEVE_CONFIRM = false;
-                    }
-                    int progress = (x*100)/IMAGE_COUNTER;
-                    handler.obtainMessage(PROGRESS_BAR, 1, progress);
+                for (byte[] value : chunked_image) {
+                    while (!RECEIVE_CONFIRM) {}
+                    mmOutStream.write(value);
+                    RECEIVE_CONFIRM = false;
                 }
-                handler.obtainMessage(BT_WRITE, 1, 1).sendToTarget();
+                int progress = (x*100)/IMAGE_COUNTER;
+                handler.obtainMessage(PROGRESS_BAR, 1, progress);
+//                }
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Error occurred when sending data", e);
                 handler.obtainMessage(BT_WRITE, -1, 1).sendToTarget();
+            }
+        }
+
+        public void writeId(int x, int y) {
+            try {
+                mmOutStream.write((byte) x);
+                mmOutStream.write((byte) y);
+            } catch (IOException e) {
+                Log.e("connectedthreadstuff", "Error occurred when sending data", e);
             }
         }
 
