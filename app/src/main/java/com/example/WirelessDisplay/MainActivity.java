@@ -74,7 +74,7 @@ public class MainActivity extends AppCompatActivity {
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
 //    static String[] textImage = new String[200];
-    static byte[][] byteImage = new byte[200][3072];
+    static byte[][] byteImage = new byte[255][3072];
     Button getimagebtn, getgifbtn, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
@@ -146,11 +146,10 @@ public class MainActivity extends AppCompatActivity {
                         Uri uri = data.getData();
                         Bitmap image = obtainBitmap(uri);
                         image = resizeBitmap(image);
-                        obtainPixels(image, 0, 0);
+                        obtainPixels(image);
                         IMAGE_COUNTER++;
                         updateImageSelectedText(0);
                         getgifbtn.setEnabled(false);
-//                        sendBluetooth.setEnabled(true);
                         bluetoothButtonCheck();
                     }
                 });
@@ -161,12 +160,10 @@ public class MainActivity extends AppCompatActivity {
                     if (result.getResultCode() == Activity.RESULT_OK) {
                         Intent data = result.getData();
                         Uri uri = data.getData();
-                        setClearSelection();
                         editGif(uri);
                         updateImageSelectedText(1);
                         SLIDESHOW_TIME = 0;
                         getimagebtn.setEnabled(false);
-//                        sendBluetooth.setEnabled(true);
                         bluetoothButtonCheck();
                     }
                 });
@@ -337,7 +334,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void setClearSelection() {
         IMAGE_COUNTER = 0;
-        Arrays.fill(byteImage, null);
+        byteImage = new byte[255][3072];
         imageV.setImageDrawable(null);
         updateImageSelectedText(0);
     }
@@ -443,33 +440,17 @@ public class MainActivity extends AppCompatActivity {
         return Bitmap.createScaledBitmap(bitmap, 32,32, false);
     }
 
-    public void obtainPixels (Bitmap image, int z, int gifcounter) {
+    public void obtainPixels (Bitmap image) {
         int counter = 0;
 
-        switch (z) {
-            case 0:
-                for (int x=0; x<32; x++) {
-                    for (int y=0; y<32; y++) {
-                        byteImage[IMAGE_COUNTER][counter] = (byte) (Color.red(image.getPixel(x, y)));
-                        byteImage[IMAGE_COUNTER][counter+1] = (byte) Color.green(image.getPixel(x, y));
-                        byteImage[IMAGE_COUNTER][counter+2] = (byte) Color.blue(image.getPixel(x, y));
-                        counter+=3;
-                    }
-                }
-                break;
-            case 1:
-                for (int x=0; x<32; x++) {
-                    for (int y=0; y<32; y++) {
-                        byteImage[gifcounter][counter] = (byte) (Color.red(image.getPixel(x, y)));
-                        byteImage[gifcounter][counter+1] = (byte) Color.green(image.getPixel(x, y));
-                        byteImage[gifcounter][counter+2] = (byte) Color.blue(image.getPixel(x, y));
-                        counter+=3;
-                    }
-                }
-                break;
+        for (int x=0; x<32; x++) {
+            for (int y=0; y<32; y++) {
+                byteImage[IMAGE_COUNTER][counter] = (byte) Color.red(image.getPixel(x, y));
+                byteImage[IMAGE_COUNTER][counter+1] = (byte) Color.green(image.getPixel(x, y));
+                byteImage[IMAGE_COUNTER][counter+2] = (byte) Color.blue(image.getPixel(x, y));
+                counter+=3;
+            }
         }
-
-
 //        StringBuilder Builder = new StringBuilder();
 //        for (int x=0; x<32; x++) {
 //            for (int y = 0; y < 32; y++) {
@@ -500,10 +481,10 @@ public class MainActivity extends AppCompatActivity {
         GifDecoder gifDecoder = new GifDecoder();
         boolean isSucceeded = gifDecoder.load(returnFilepath(this, uri));
         if (isSucceeded) {
-            for (int i = 0; i < gifDecoder.frameNum(); ++i) {
-                Bitmap bitmap = gifDecoder.frame(i);
+            for (IMAGE_COUNTER = 0; IMAGE_COUNTER < gifDecoder.frameNum(); ++IMAGE_COUNTER) {
+                Bitmap bitmap = gifDecoder.frame(IMAGE_COUNTER);
                 bitmap = resizeBitmap(bitmap);
-                obtainPixels(bitmap, 1, i);
+                obtainPixels(bitmap);
             }
             IMAGE_COUNTER = gifDecoder.frameNum();
         }
@@ -662,7 +643,7 @@ public class MainActivity extends AppCompatActivity {
 
                 for (int x=0; x<IMAGE_COUNTER; x++) {
 //                    byte[] bytes = textImage[x].getBytes();
-                    byte[][] chunked_image = divideArray(byteImage[IMAGE_COUNTER], 128); // 48 chunks
+                    byte[][] chunked_image = divideArray(byteImage[x], 128); // chunks = 3072/chunksize
 
                     for (byte[] value : chunked_image) {
                         while (!RECIEVE_CONFIRM) {}
