@@ -42,6 +42,7 @@ import android.widget.NumberPicker;
 import com.bumptech.glide.Glide;
 import com.waynejo.androidndkgif.GifDecoder;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -72,7 +73,8 @@ public class MainActivity extends AppCompatActivity {
 
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
-    static String[] textImage = new String[200];
+//    static String[] textImage = new String[200];
+    static byte[][] byteImage = new byte[200][3072];
     Button getimagebtn, getgifbtn, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
@@ -319,7 +321,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void bluetoothButtonCheck() {
-        sendBluetooth.setEnabled(HC05socket != null && textImage[0] != null);
+        sendBluetooth.setEnabled(HC05socket != null && byteImage[0] != null);
     }
 
     public void updateImageSelectedText(int x) {
@@ -335,7 +337,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void setClearSelection() {
         IMAGE_COUNTER = 0;
-        Arrays.fill(textImage, null);
+        Arrays.fill(byteImage, null);
         imageV.setImageDrawable(null);
         updateImageSelectedText(0);
     }
@@ -442,30 +444,56 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void obtainPixels (Bitmap image, int z, int gifcounter) {
-        StringBuilder Builder = new StringBuilder();
-
-        for (int x=0; x<32; x++) {
-            for (int y = 0; y < 32; y++) {
-                int pixel = image.getPixel(x, y);
-                int red = Color.red(pixel) / 16;
-                int green = Color.green(pixel) / 16;
-                int blue = Color.blue(pixel) / 16;
-
-                String redh = Integer.toHexString(red).toUpperCase();
-                String greenh = Integer.toHexString(green).toUpperCase();
-                String blueh = Integer.toHexString(blue).toUpperCase();
-
-                Builder.append(redh).append(greenh).append(blueh);
-            }
-        }
+        int counter = 0;
 
         switch (z) {
             case 0:
-                textImage[IMAGE_COUNTER] = Builder.toString();
+                for (int x=0; x<32; x++) {
+                    for (int y=0; y<32; y++) {
+                        byteImage[IMAGE_COUNTER][counter] = (byte) (Color.red(image.getPixel(x, y)));
+                        byteImage[IMAGE_COUNTER][counter+1] = (byte) Color.green(image.getPixel(x, y));
+                        byteImage[IMAGE_COUNTER][counter+2] = (byte) Color.blue(image.getPixel(x, y));
+                        counter+=3;
+                    }
+                }
                 break;
             case 1:
-                textImage[gifcounter] = Builder.toString();
+                for (int x=0; x<32; x++) {
+                    for (int y=0; y<32; y++) {
+                        byteImage[gifcounter][counter] = (byte) (Color.red(image.getPixel(x, y)));
+                        byteImage[gifcounter][counter+1] = (byte) Color.green(image.getPixel(x, y));
+                        byteImage[gifcounter][counter+2] = (byte) Color.blue(image.getPixel(x, y));
+                        counter+=3;
+                    }
+                }
+                break;
         }
+
+
+//        StringBuilder Builder = new StringBuilder();
+//        for (int x=0; x<32; x++) {
+//            for (int y = 0; y < 32; y++) {
+//                int pixel = image.getPixel(x, y);
+//                int red = Color.red(pixel) / 16;
+//                int green = Color.green(pixel) / 16;
+//                int blue = Color.blue(pixel) / 16;
+//
+//                String redh = Integer.toHexString(red).toUpperCase();
+//                String greenh = Integer.toHexString(green).toUpperCase();
+//                String blueh = Integer.toHexString(blue).toUpperCase();
+//
+//                Builder.append(redh).append(greenh).append(blueh);
+//            }
+//        }
+//
+//        switch (z) {
+//            case 0:
+//                textImage[IMAGE_COUNTER] = Builder.toString();
+//                break;
+//            case 1:
+//                textImage[gifcounter] = Builder.toString();
+//                break;
+//        }
     }
 
     public void editGif(Uri uri) {
@@ -633,8 +661,8 @@ public class MainActivity extends AppCompatActivity {
                 while (!RECIEVE_CONFIRM) {}
 
                 for (int x=0; x<IMAGE_COUNTER; x++) {
-                    byte[] bytes = textImage[x].getBytes();
-                    byte[][] chunked_image = divideArray(bytes, 128); // 48 chunks
+//                    byte[] bytes = textImage[x].getBytes();
+                    byte[][] chunked_image = divideArray(byteImage[IMAGE_COUNTER], 128); // 48 chunks
 
                     for (byte[] value : chunked_image) {
                         while (!RECIEVE_CONFIRM) {}
