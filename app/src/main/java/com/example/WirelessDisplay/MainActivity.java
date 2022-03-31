@@ -634,7 +634,7 @@ public class MainActivity extends AppCompatActivity {
 
                 for (int x=0; x<IMAGE_COUNTER; x++) {
                     byte[] bytes = textImage[x].getBytes();
-                    byte[][] chunked_image = divideArray(bytes, 64); // 48 chunks
+                    byte[][] chunked_image = divideArray(bytes, 128); // 48 chunks
 
                     for (byte[] value : chunked_image) {
                         while (!RECIEVE_CONFIRM) {}
