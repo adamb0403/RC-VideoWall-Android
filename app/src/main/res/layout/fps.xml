@@ -5,7 +5,7 @@
     android:layout_height="300dp">
 
     <NumberPicker
-        android:id="@+id/slideshowTime"
+        android:id="@+id/fpsTime"
         android:layout_width="100dp"
         android:layout_height="276dp"
 

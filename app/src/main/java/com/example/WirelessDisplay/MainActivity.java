@@ -73,9 +73,10 @@ public class MainActivity extends AppCompatActivity {
 
     static int IMAGE_COUNTER = 0;
     static int SLIDESHOW_TIME = 5;
-//    static String[] textImage = new String[200];
-    static byte[][] byteImage = new byte[255][3072];
-    Button getimagebtn, getgifbtn, clearSel, slideshowTime, btbtn, disconnectbtn, sendBluetooth;
+    static int FPS = 24;
+    static int DECIDER;
+    static byte[][] byteImage = new byte[254][3072];
+    Button getimagebtn, getgifbtn, clearSel, slideshowTime, setFPSbtn, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
     ProgressBar pBar;
@@ -128,6 +129,7 @@ public class MainActivity extends AppCompatActivity {
         tv=findViewById(R.id.textView);
         btText=findViewById(R.id.BTtext);
         slideshowTime=findViewById(R.id.setSlideshowTime);
+        setFPSbtn=findViewById(R.id.setFPS);
         btbtn=findViewById(R.id.btbutton);
         disconnectbtn=findViewById(R.id.disconnectBt);
         sendBluetooth=findViewById(R.id.sendBT);
@@ -150,6 +152,8 @@ public class MainActivity extends AppCompatActivity {
                         IMAGE_COUNTER++;
                         updateImageSelectedText(0);
                         getgifbtn.setEnabled(false);
+                        setFPSbtn.setEnabled(false);
+                        DECIDER = 2;
                         bluetoothButtonCheck();
                     }
                 });
@@ -162,8 +166,9 @@ public class MainActivity extends AppCompatActivity {
                         Uri uri = data.getData();
                         editGif(uri);
                         updateImageSelectedText(1);
-                        SLIDESHOW_TIME = 0;
                         getimagebtn.setEnabled(false);
+                        slideshowTime.setEnabled(false);
+                        DECIDER = 1;
                         bluetoothButtonCheck();
                     }
                 });
@@ -195,11 +200,14 @@ public class MainActivity extends AppCompatActivity {
         });
 
         slideshowTime.setOnClickListener(view -> setSlideshowTime());
+        setFPSbtn.setOnClickListener(view -> setFPS());
 
         clearSel.setOnClickListener(view -> {
             setClearSelection();
             getimagebtn.setEnabled(true);
             getgifbtn.setEnabled(true);
+            slideshowTime.setEnabled(true);
+            setFPSbtn.setEnabled(true);
             bluetoothButtonCheck();
         });
 
@@ -334,9 +342,31 @@ public class MainActivity extends AppCompatActivity {
 
     public void setClearSelection() {
         IMAGE_COUNTER = 0;
-        byteImage = new byte[255][3072];
+        //byteImage;
         imageV.setImageDrawable(null);
         updateImageSelectedText(0);
+    }
+
+    public void setFPS() {
+        final AlertDialog.Builder popup = new AlertDialog.Builder(this);
+        LayoutInflater inflater = this.getLayoutInflater();
+        View dialogView = inflater.inflate(R.layout.fps, null);
+        popup.setTitle("FPS:");
+        popup.setView(dialogView);
+        final NumberPicker fpsTime = dialogView.findViewById(R.id.fpsTime);
+
+        fpsTime.setMaxValue(60);
+        fpsTime.setMinValue(1);
+        fpsTime.setValue(FPS);
+        fpsTime.setWrapSelectorWheel(true);
+
+        popup.setPositiveButton("Set", (dialog, id) -> FPS = fpsTime.getValue());
+        popup.setNegativeButton("Cancel", (dialog, id) -> {
+            // User cancelled the dialog
+        });
+
+        AlertDialog alertDialog = popup.create();
+        alertDialog.show();
     }
 
     public void setSlideshowTime() {
@@ -451,30 +481,6 @@ public class MainActivity extends AppCompatActivity {
                 counter+=3;
             }
         }
-//        StringBuilder Builder = new StringBuilder();
-//        for (int x=0; x<32; x++) {
-//            for (int y = 0; y < 32; y++) {
-//                int pixel = image.getPixel(x, y);
-//                int red = Color.red(pixel) / 16;
-//                int green = Color.green(pixel) / 16;
-//                int blue = Color.blue(pixel) / 16;
-//
-//                String redh = Integer.toHexString(red).toUpperCase();
-//                String greenh = Integer.toHexString(green).toUpperCase();
-//                String blueh = Integer.toHexString(blue).toUpperCase();
-//
-//                Builder.append(redh).append(greenh).append(blueh);
-//            }
-//        }
-//
-//        switch (z) {
-//            case 0:
-//                textImage[IMAGE_COUNTER] = Builder.toString();
-//                break;
-//            case 1:
-//                textImage[gifcounter] = Builder.toString();
-//                break;
-//        }
     }
 
     public void editGif(Uri uri) {
@@ -637,12 +643,19 @@ public class MainActivity extends AppCompatActivity {
         public void write() {
             try {
                 mmOutStream.write((byte) IMAGE_COUNTER);
-                mmOutStream.write((byte) SLIDESHOW_TIME);
+                mmOutStream.write((byte) DECIDER);
+
+                switch (DECIDER) {
+                    case 1:
+                        mmOutStream.write((byte) FPS);
+                        break;
+                    case 2:
+                        mmOutStream.write((byte) SLIDESHOW_TIME);
+                }
 
                 while (!RECIEVE_CONFIRM) {}
 
                 for (int x=0; x<IMAGE_COUNTER; x++) {
-//                    byte[] bytes = textImage[x].getBytes();
                     byte[][] chunked_image = divideArray(byteImage[x], 128); // chunks = 3072/chunksize
 
                     for (byte[] value : chunked_image) {

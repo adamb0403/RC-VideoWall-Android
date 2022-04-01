@@ -57,6 +57,20 @@
         app:layout_constraintStart_toStartOf="parent" />
 
     <Button
+        android:id="@+id/setFPS"
+        android:layout_width="109dp"
+        android:layout_height="66dp"
+        android:layout_marginBottom="28dp"
+        android:text="Set FPS"
+        android:textSize="12sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/clearSelection"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/setSlideshowTime"
+        app:layout_constraintTop_toBottomOf="@+id/btbutton"
+        app:layout_constraintVertical_bias="1.0" />
+
+    <Button
         android:id="@+id/clearSelection"
         android:layout_width="106dp"
         android:layout_height="58dp"
