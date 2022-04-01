@@ -39,8 +39,8 @@ import android.graphics.Color;
 import android.widget.Toast;
 import android.widget.NumberPicker;
 
-import com.bumptech.glide.Glide;
-import com.waynejo.androidndkgif.GifDecoder;
+import com.bumptech.glide.Glide; // Include 3rd pty class Glide
+import com.waynejo.androidndkgif.GifDecoder; // Include 3rd pty class GifDecoder
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -56,41 +56,42 @@ import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
-    ActivityResultLauncher<String[]> mPermissionResultLauncher;
-    private boolean isStoragePermissionGranted = false;
-    private boolean isLocationPermissionGranted = false;
-//    private boolean isConnectPermissionGranted = false;
+    ActivityResultLauncher<String[]> mPermissionResultLauncher; // Initialise permission checks
+    private boolean isStoragePermissionGranted = false; // ""
+    private boolean isLocationPermissionGranted = false; // ""
+//    private boolean isConnectPermissionGranted = false; // ""
 
-    private static final int SELECT_DEVICE_REQUEST_CODE = 0;
+    private static final int SELECT_DEVICE_REQUEST_CODE = 0; // Used to identify which intent is used
+
     private final static int CONNECTING_STATUS = 1; // used in bluetooth handler to identify message status
-    private final static int MESSAGE_READ = 2;
-    private final static int BT_WRITE = 3;
-    private final static int BT_CANCEL = 4;
-    private final static int PROGRESS_BAR = 5;
+    private final static int BT_WRITE = 2;
+    private final static int BT_CANCEL = 3;
+    private final static int PROGRESS_BAR = 4;
 
-    private static BluetoothSocket HC05socket;
-    public static Handler handler;
+    private static BluetoothSocket HC05socket; // Represents the Bluetooth connection
+    public static Handler handler; // Initialise return Handler
 
-    static int IMAGE_COUNTER = 0;
-    static int SLIDESHOW_TIME = 5;
-    static int FPS = 24;
-    static int DECIDER;
-    static byte[][] byteImage = new byte[254][3072];
+    static int IMAGE_COUNTER = 0; // Global record of no. images selected
+    static int SLIDESHOW_TIME = 5; // Timing used for images
+    static int FPS = 24; // Timing used for animated gifs
+    static int DECIDER; //
+    static byte[][] byteImage = new byte[254][3072]; // All decoded images/animations are stored in byteImage array
     Button getimagebtn, getgifbtn, clearSel, slideshowTime, setFPSbtn, btbtn, disconnectbtn, sendBluetooth;
     ImageView imageV;
     TextView tv, btText;
     ProgressBar pBar;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) { // Equivalent to "main" method. On application start this method is run
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Check if all permissions are granted
         mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
 
             if (result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) != null){
 
-                isStoragePermissionGranted = result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE);
+                isStoragePermissionGranted = result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE); // If permissions
 
             }
 
@@ -108,8 +109,9 @@ public class MainActivity extends AppCompatActivity {
 
         });
 
-        requestPermission();
+        requestPermission(); // Call method to request all permissions
 
+        // Assign the device's Bluetooth module as a manipulatable object
         BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         if (bluetoothAdapter == null) {
             Toast.makeText(MainActivity.this, "Bluetooth is not supported on this device.", Toast.LENGTH_SHORT).show();
@@ -117,12 +119,12 @@ public class MainActivity extends AppCompatActivity {
         else {
             Toast.makeText(MainActivity.this, "Bluetooth is compatible on this device.", Toast.LENGTH_SHORT).show();
             if (!bluetoothAdapter.isEnabled()) {
-                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                Intent enableBtIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE); // Call intent to enable the Bluetooth adapter
                 startActivity(enableBtIntent); // Does not support API > 30. Add Connect permission to support android11
             }
         }
 
-        clearSel=findViewById(R.id.clearSelection);
+        clearSel=findViewById(R.id.clearSelection); // Initialise all buttons/textviews/imageviews in activity_main.xml
         getimagebtn=findViewById(R.id.getimagebutton);
         getgifbtn=findViewById(R.id.getgifbutton);
         imageV=findViewById(R.id.imageView);
@@ -133,85 +135,84 @@ public class MainActivity extends AppCompatActivity {
         btbtn=findViewById(R.id.btbutton);
         disconnectbtn=findViewById(R.id.disconnectBt);
         sendBluetooth=findViewById(R.id.sendBT);
-        pBar=findViewById(R.id.progressBar);
+        pBar=findViewById(R.id.progressBar); // Initialise progress bar
 
         pBar.setProgress(50, true);
 
-        sendBluetooth.setEnabled(false);
-        updateImageSelectedText(0);
+        sendBluetooth.setEnabled(false); // Set Send bluetooth button to disabled on app start
+        updateImageSelectedText(0); // Call method to initialise image selected text
 
-        ActivityResultLauncher<Intent> getImage = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
+        // Result launcher for the intent created when "upload image" is pressed
+        ActivityResultLauncher<Intent> getImage = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                     if (result.getResultCode() == Activity.RESULT_OK) {
-                        Intent data = result.getData();
-                        Uri uri = data.getData();
-                        Bitmap image = obtainBitmap(uri);
-                        image = resizeBitmap(image);
-                        obtainPixels(image);
+                        Intent data = result.getData(); // When image is selected from explorer, store it in "data"
+                        Uri uri = data.getData(); // Obtain the universal resource identifier of the "data" intent
+                        Bitmap image = obtainBitmap(uri); // Call method to obtain a bitmap image from the uri
+                        image = resizeBitmap(image); // Call method to compress the bitmap to 32x32
+                        obtainPixels(image); // Call method to obtain the colours for each pixel of the compressed bitmap
                         IMAGE_COUNTER++;
                         updateImageSelectedText(0);
-                        getgifbtn.setEnabled(false);
+                        getgifbtn.setEnabled(false); // Disable "upload GIF" button
                         setFPSbtn.setEnabled(false);
-                        DECIDER = 2;
-                        bluetoothButtonCheck();
+                        DECIDER = 2; // Associate slideshow uploads with no. 2 for the decider
+                        bluetoothButtonCheck(); // Call method to check whether the Send Bt button should be enabled
                     }
                 });
 
-        ActivityResultLauncher<Intent> getGif = registerForActivityResult(
-                new ActivityResultContracts.StartActivityForResult(),
-                result -> {
+        // Result launcher for the intent created when "upload image" is pressed
+        ActivityResultLauncher<Intent> getGif = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                     if (result.getResultCode() == Activity.RESULT_OK) {
                         Intent data = result.getData();
                         Uri uri = data.getData();
-                        editGif(uri);
+                        editGif(uri); // Call method to decode animated GIF
                         updateImageSelectedText(1);
-                        getimagebtn.setEnabled(false);
+                        getimagebtn.setEnabled(false); // Disable "upload GIF" button
                         slideshowTime.setEnabled(false);
-                        DECIDER = 1;
+                        DECIDER = 1; // Associate animated GIF uploads with no. 1 for the decider
                         bluetoothButtonCheck();
                     }
                 });
 
-        getimagebtn.setOnClickListener(view -> {
-            Intent intent=new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("image/*");
-            getImage.launch(intent);
+        getimagebtn.setOnClickListener(view -> { // Listen for when "Upload image" button is clicked
+            Intent intent=new Intent(Intent.ACTION_GET_CONTENT); // Call an intent to open the Android content explorer
+            intent.setType("image/*"); // Limit clickable objects to only image types
+            getImage.launch(intent); // Call the Result launcher above for getImage
         });
 
-        getgifbtn.setOnClickListener(view -> {
+        getgifbtn.setOnClickListener(view -> { // Listen for when "Upload gif" button is clicked
             Intent intent=new Intent(Intent.ACTION_GET_CONTENT);
-            intent.setType("image/gif");
-            getGif.launch(intent);
+            intent.setType("image/gif"); // Limit clickable objects to only GIF image types
+            getGif.launch(intent); // Call the Result launcher above for getGif
         });
 
-        sendBluetooth.setOnClickListener(view -> {
-            getWindow().setFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
+        sendBluetooth.setOnClickListener(view -> { // Listen for when "Send Bluetooth" button is clicked
+            // Call Method to send data to ESP32/Arduino within ConnectedThread Class and pass the Bluetooth Socket
             new ConnectedThread(HC05socket).write();
         });
 
-        btbtn.setOnClickListener(view -> {
-            companionDeviceManager();
+        btbtn.setOnClickListener(view -> { // Listen for when "Connect Bluetooth" button is clicked
+            companionDeviceManager(); // Call method to open the companion device manager to scan for Bluetooth devices
         });
 
-        disconnectbtn.setOnClickListener(view -> {
+        disconnectbtn.setOnClickListener(view -> { // Listen for when "Disconnect Bluetooth" button is clicked
+            // Call method to close the BT connection within ConnectedThread class and pass bluetooth socket
             new ConnectedThread(HC05socket).cancel();
         });
 
-        slideshowTime.setOnClickListener(view -> setSlideshowTime());
-        setFPSbtn.setOnClickListener(view -> setFPS());
+        slideshowTime.setOnClickListener(view -> setSlideshowTime()); // Call method to change slideshow time when button is clicked
+        setFPSbtn.setOnClickListener(view -> setFPS()); // Call method to change fps when button is clicked
 
-        clearSel.setOnClickListener(view -> {
-            setClearSelection();
-            getimagebtn.setEnabled(true);
+        clearSel.setOnClickListener(view -> { // Listen for when "Clear Selection" button is clicked
+            setClearSelection(); // Call method to initialise bytes / selection
+            getimagebtn.setEnabled(true); // Revert select buttons to their original state
             getgifbtn.setEnabled(true);
             slideshowTime.setEnabled(true);
             setFPSbtn.setEnabled(true);
             bluetoothButtonCheck();
         });
 
-        handler = new Handler(Looper.getMainLooper()) {
+        handler = new Handler(Looper.getMainLooper()) { // Initialise the handler on the main looper
+            // Run different commands depending on what message is sent to the handler (More detail in background threads)
             @Override
             public void handleMessage(Message msg) {
                 switch (msg.what) {
@@ -233,28 +234,14 @@ public class MainActivity extends AppCompatActivity {
                         }
                         break;
 
-                    case MESSAGE_READ:
-                        switch (msg.arg1) {
-                            case 1:
-                                String arduinomsg = msg.obj.toString();
-                                tv.setText(arduinomsg);
-                                break;
-                            case -1:
-
-                                break;
-                        }
-                        break;
-
                     case BT_WRITE:
                         switch (msg.arg1) {
                             case 1:
-                                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
                                 Toast.makeText(MainActivity.this, "Successfully sent data.", Toast.LENGTH_LONG).show();
                                 break;
                             case -1:
-                                getWindow().clearFlags(WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE);
                                 Toast.makeText(MainActivity.this, "Error occurred when sending data... Closing bluetooth connection", Toast.LENGTH_LONG).show();
-                                new ConnectedThread(HC05socket).cancel();
+                                new ConnectedThread(HC05socket).cancel(); // Close the BT connection after a write error
                                 break;
                         }
                         break;
@@ -275,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
                         break;
 
                     case PROGRESS_BAR:
-                        pBar.setProgress(msg.arg2, true);
+                        pBar.setProgress(msg.arg2, true); // Update the progress bar between sending bytes
                 }
             }
         };
