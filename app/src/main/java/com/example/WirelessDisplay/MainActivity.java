@@ -18,6 +18,7 @@ import android.content.ContentResolver;
 import android.content.Context;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -25,7 +26,6 @@ import android.os.Message;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Button;
@@ -42,7 +42,6 @@ import android.widget.NumberPicker;
 import com.bumptech.glide.Glide; // Include 3rd pty class Glide
 import com.waynejo.androidndkgif.GifDecoder; // Include 3rd pty class GifDecoder
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -56,10 +55,8 @@ import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
-    ActivityResultLauncher<String[]> mPermissionResultLauncher; // Initialise permission checks
-    private boolean isStoragePermissionGranted = false; // ""
-    private boolean isLocationPermissionGranted = false; // ""
-//    private boolean isConnectPermissionGranted = false; // ""
+    ActivityResultLauncher<String[]> mPermissionResultLauncher; // Declare permission launcher
+    private boolean isConnectPermissionGranted = false; // Declare permisson check for BT connect
 
     private static final int SELECT_DEVICE_REQUEST_CODE = 0; // Used to identify which intent is used
 
@@ -75,8 +72,8 @@ public class MainActivity extends AppCompatActivity {
     static int SLIDESHOW_TIME = 5; // Timing used for images
     static int FPS = 24; // Timing used for animated gifs
     static int DECIDER; //
-    static byte[][] byteImage = new byte[254][3072]; // All decoded images/animations are stored in byteImage array
-    Button getimagebtn, getgifbtn, clearSel, slideshowTime, setFPSbtn, btbtn, disconnectbtn, sendBluetooth;
+    static byte[][] byteImage = new byte[254][3072]; // All decoded images/animations are stored in an array of byte arrays
+    Button getimagebtn, getgifbtn, clearSel, slideshowTime, setFPSbtn, btbtn, disconnectbtn, sendBluetooth; // Declare buttons, image views etc
     ImageView imageV;
     TextView tv, btText;
     ProgressBar pBar;
@@ -86,30 +83,19 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Check if all permissions are granted
-        mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
+        if (Build.VERSION.SDK_INT >= 31) { // If user is using Android 12, check BLUETOOTH_CONNECT permission
 
-            if (result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE) != null){
+            mPermissionResultLauncher = registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(), result -> {
 
-                isStoragePermissionGranted = result.get(Manifest.permission.WRITE_EXTERNAL_STORAGE); // If permissions
+                if (result.get(Manifest.permission.BLUETOOTH_CONNECT) != null){
 
-            }
+                    isConnectPermissionGranted = result.get(Manifest.permission.BLUETOOTH_CONNECT);
 
-            if (result.get(Manifest.permission.ACCESS_FINE_LOCATION) != null){
+                }
+            });
 
-                isLocationPermissionGranted = result.get(Manifest.permission.ACCESS_FINE_LOCATION);
-
-            }
-
-//            if (result.get(Manifest.permission.BLUETOOTH_CONNECT) != null){
-//
-//                isConnectPermissionGranted = result.get(Manifest.permission.BLUETOOTH_CONNECT);
-//
-//            }
-
-        });
-
-        requestPermission(); // Call method to request all permissions
+            requestPermission(); // Call method to request permission
+        }
 
         // Assign the device's Bluetooth module as a manipulatable object
         BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
@@ -136,8 +122,6 @@ public class MainActivity extends AppCompatActivity {
         disconnectbtn=findViewById(R.id.disconnectBt);
         sendBluetooth=findViewById(R.id.sendBT);
         pBar=findViewById(R.id.progressBar); // Initialise progress bar
-
-        pBar.setProgress(50, true);
 
         sendBluetooth.setEnabled(false); // Set Send bluetooth button to disabled on app start
         updateImageSelectedText(0); // Call method to initialise image selected text
@@ -186,11 +170,17 @@ public class MainActivity extends AppCompatActivity {
         });
 
         sendBluetooth.setOnClickListener(view -> { // Listen for when "Send Bluetooth" button is clicked
-            // Call Method to send data to ESP32/Arduino within ConnectedThread Class and pass the Bluetooth Socket
-            new ConnectedThread(HC05socket).write();
+            pBar.setProgress(0);
+            clearSel.setEnabled(false);
+            disconnectbtn.setEnabled(false);
+            sendBluetooth.setEnabled(false);
+            // Create new thread to call write() method to not block the main UI
+            new Thread(() -> new ConnectedThread(HC05socket).write()).start();
         });
 
         btbtn.setOnClickListener(view -> { // Listen for when "Connect Bluetooth" button is clicked
+            btbtn.setEnabled(false);
+            btText.setText("Searching...");
             companionDeviceManager(); // Call method to open the companion device manager to scan for Bluetooth devices
         });
 
@@ -237,9 +227,15 @@ public class MainActivity extends AppCompatActivity {
                     case BT_WRITE:
                         switch (msg.arg1) {
                             case 1:
+                                clearSel.setEnabled(true);
+                                disconnectbtn.setEnabled(true);
+                                sendBluetooth.setEnabled(true);
                                 Toast.makeText(MainActivity.this, "Successfully sent data.", Toast.LENGTH_LONG).show();
                                 break;
                             case -1:
+                                clearSel.setEnabled(true);
+                                disconnectbtn.setEnabled(true);
+                                sendBluetooth.setEnabled(true);
                                 Toast.makeText(MainActivity.this, "Error occurred when sending data... Closing bluetooth connection", Toast.LENGTH_LONG).show();
                                 new ConnectedThread(HC05socket).cancel(); // Close the BT connection after a write error
                                 break;
@@ -263,47 +259,27 @@ public class MainActivity extends AppCompatActivity {
 
                     case PROGRESS_BAR:
                         pBar.setProgress(msg.arg2, true); // Update the progress bar between sending bytes
+                        break;
                 }
             }
         };
     }
 
     private void requestPermission(){
-
-        isStoragePermissionGranted = ContextCompat.checkSelfPermission(
+        isConnectPermissionGranted = ContextCompat.checkSelfPermission(
                 this,
-                Manifest.permission.WRITE_EXTERNAL_STORAGE
+                Manifest.permission.BLUETOOTH_CONNECT
         ) == PackageManager.PERMISSION_GRANTED;
-
-        isLocationPermissionGranted = ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED;
-
-//        isConnectPermissionGranted = ContextCompat.checkSelfPermission(
-//                this,
-//                Manifest.permission.BLUETOOTH_CONNECT
-//        ) == PackageManager.PERMISSION_GRANTED;
 
         List<String> permissionRequest = new ArrayList<String>();
 
-        if (!isStoragePermissionGranted){
 
-            permissionRequest.add(Manifest.permission.WRITE_EXTERNAL_STORAGE);
 
-        }
+        if (!isConnectPermissionGranted){
 
-        if (!isLocationPermissionGranted){
-
-            permissionRequest.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            permissionRequest.add(Manifest.permission.BLUETOOTH_CONNECT);
 
         }
-
-//        if (!isConnectPermissionGranted){
-//
-//            permissionRequest.add(Manifest.permission.BLUETOOTH_CONNECT);
-//
-//        }
 
         if (!permissionRequest.isEmpty()){
 
@@ -313,50 +289,51 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void bluetoothButtonCheck() {
+        // If Bluetooth socket and the first array of the byte array are not empty, enable the send BT button
         sendBluetooth.setEnabled(HC05socket != null && byteImage[0] != null);
     }
 
     public void updateImageSelectedText(int x) {
         switch (x) {
-            case 0:
+            case 0: // Set Image selected text if user is uploading images
                 tv.setText("Images Selected: " + IMAGE_COUNTER);
                 break;
-            case 1:
+            case 1: // Set Image selected text if user is uploading gifs
                 tv.setText("Frames: " + IMAGE_COUNTER);
                 break;
         }
     }
 
     public void setClearSelection() {
-        IMAGE_COUNTER = 0;
+        IMAGE_COUNTER = 0; // Initilaise image counter
         //byteImage;
-        imageV.setImageDrawable(null);
-        updateImageSelectedText(0);
+        imageV.setImageDrawable(null); // Remove the image from the UI display
+        updateImageSelectedText(0); // Call method to update the selection text
     }
 
     public void setFPS() {
+        // Declare and initialise a builder for a "dialog", a small pop up window
         final AlertDialog.Builder popup = new AlertDialog.Builder(this);
-        LayoutInflater inflater = this.getLayoutInflater();
-        View dialogView = inflater.inflate(R.layout.fps, null);
+        LayoutInflater inflater = this.getLayoutInflater(); // Declare and initialise Inflater to link the fps.xml layout
+        View dialogView = inflater.inflate(R.layout.fps, null); // Create new view containing fps.xml as the popup screen
         popup.setTitle("FPS:");
         popup.setView(dialogView);
-        final NumberPicker fpsTime = dialogView.findViewById(R.id.fpsTime);
+        final NumberPicker fpsTime = dialogView.findViewById(R.id.fpsTime); // Initialise the number scroller
 
-        fpsTime.setMaxValue(60);
+        fpsTime.setMaxValue(60); //  Set max/min values
         fpsTime.setMinValue(1);
-        fpsTime.setValue(FPS);
+        fpsTime.setValue(FPS); // Set default value (24)
         fpsTime.setWrapSelectorWheel(true);
 
-        popup.setPositiveButton("Set", (dialog, id) -> FPS = fpsTime.getValue());
-        popup.setNegativeButton("Cancel", (dialog, id) -> {
-            // User cancelled the dialog
-        });
+        popup.setPositiveButton("Set", (dialog, id) -> FPS = fpsTime.getValue()); // If button is pressed update FPS to value selected
+        popup.setNegativeButton("Cancel", (dialog, id) -> { }); // User stopped dialog. Return to main xml
 
-        AlertDialog alertDialog = popup.create();
-        alertDialog.show();
+        AlertDialog alertDialog = popup.create(); // Build the dialog from the builder created at start of method
+        alertDialog.show(); // Display the popup screen
     }
 
     public void setSlideshowTime() {
+        // Almost identical to setFPS(), but for slideshow time
         final AlertDialog.Builder popup = new AlertDialog.Builder(this);
         LayoutInflater inflater = this.getLayoutInflater();
         View dialogView = inflater.inflate(R.layout.slideshow, null);
@@ -365,51 +342,36 @@ public class MainActivity extends AppCompatActivity {
         final NumberPicker slideshowTime = dialogView.findViewById(R.id.slideshowTime);
 
         slideshowTime.setMaxValue(100);
-        slideshowTime.setMinValue(0);
+        slideshowTime.setMinValue(1);
         slideshowTime.setValue(SLIDESHOW_TIME);
         slideshowTime.setWrapSelectorWheel(true);
 
         popup.setPositiveButton("Set", (dialog, id) -> SLIDESHOW_TIME = slideshowTime.getValue());
-        popup.setNegativeButton("Cancel", (dialog, id) -> {
-            // User cancelled the dialog
-        });
+        popup.setNegativeButton("Cancel", (dialog, id) -> { });
 
         AlertDialog alertDialog = popup.create();
         alertDialog.show();
     }
 
     public void companionDeviceManager() {
-        CompanionDeviceManager deviceManager =
-                (CompanionDeviceManager) getSystemService(
-                        Context.COMPANION_DEVICE_SERVICE
-                );
-
-        // To skip filtering based on name and supported feature flags,
-        // don't include calls to setNamePattern() and addServiceUuid(),
-        // respectively. This example uses Bluetooth.
-        BluetoothDeviceFilter deviceFilter =
-                new BluetoothDeviceFilter.Builder()
-                        .setNamePattern(Pattern.compile("WIRELESSDISPLAY"))
-//                        .addServiceUuid(
-//                                new ParcelUuid(new UUID(0x123abcL, -1L)), null
-//                        )
+        // Create a filter to control what devices are displayed in the popup
+        BluetoothDeviceFilter dFilter = new BluetoothDeviceFilter.Builder()
+                        .setNamePattern(Pattern.compile("WIRELESSDISPLAY")) // Only display devices with this name
                         .build();
 
-        // The argument provided in setSingleDevice() determines whether a single
-        // device name or a list of device names is presented to the user as
-        // pairing options.
-        AssociationRequest pairingRequest = new AssociationRequest.Builder()
-                .addDeviceFilter(deviceFilter)
-//                .setSingleDevice(false)
+        AssociationRequest pRequest = new AssociationRequest.Builder() // Initialise an Association request and include the filter
+                .addDeviceFilter(dFilter)
                 .build();
 
-        // When the app tries to pair with the Bluetooth device, show the
-        // appropriate pairing request dialog to the user.
-        deviceManager.associate(pairingRequest,
-                new CompanionDeviceManager.Callback() {
+        // Initialise the device manager and run associate() to take the request and callback
+        CompanionDeviceManager deviceManager = (CompanionDeviceManager) getSystemService(Context.COMPANION_DEVICE_SERVICE);
+        deviceManager.associate(pRequest, new CompanionDeviceManager.Callback() {
+                    // This callback indicates when a device that matches the device filter has been found
                     @Override
+                    // Dialog box is opened once device is found showing available devices
                     public void onDeviceFound(IntentSender chooserLauncher) {
                         try {
+                            // When user selects a device, result is sent to onActivityResult to be handled
                             startIntentSenderForResult(chooserLauncher, SELECT_DEVICE_REQUEST_CODE, null, 0, 0, 0);
                         } catch (IntentSender.SendIntentException e) {
                             // failed to send the intent
@@ -418,7 +380,10 @@ public class MainActivity extends AppCompatActivity {
 
                     @Override
                     public void onFailure(CharSequence error) {
-                        // handle failure to find the companion device
+                        // No devices could be found matching the filter
+                        Toast.makeText(MainActivity.this, "No bluetooth devices found.", Toast.LENGTH_SHORT).show();
+                        btText.setText("Bluetooth: Disconnected");
+                        btbtn.setEnabled(true);
                     }
                 }, null);
     }
@@ -427,39 +392,44 @@ public class MainActivity extends AppCompatActivity {
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         if (requestCode == SELECT_DEVICE_REQUEST_CODE) {
             if (resultCode == Activity.RESULT_OK && data != null) {
+                // BT device HC05device will now represent the remote device. ie. the device chosen by the user
                 BluetoothDevice HC05device = data.getParcelableExtra(CompanionDeviceManager.EXTRA_DEVICE);
 
                 if (HC05device != null) {
-                    HC05device.createBond();
+                    HC05device.createBond(); // Start the pairing process with HC05device
                     Toast.makeText(MainActivity.this, "Initiating connection...", Toast.LENGTH_SHORT).show();
-                    // ... Continue interacting with the paired device.
+                    // Start thread to initiate connection with BT device
                     new CreateConnectThread(HC05device).start();
                 }
             }
         } else {
+            // if request code is not SELECT_DEVICE_REQUEST_CODE, retry
             super.onActivityResult(requestCode, resultCode, data);
         }
     }
 
     public Bitmap obtainBitmap (Uri uri) {
-        ImageDecoder.Source source = ImageDecoder.createSource(getContentResolver(), uri);
-        Bitmap bitmap = null;
+        ImageDecoder.Source source = ImageDecoder.createSource(getContentResolver(), uri); // Create a image source from the uri
+        Bitmap bitmap = null; // Initialise bitmap as null so as to not confuse .setImageBitmap
         try {
-            bitmap = ImageDecoder.decodeBitmap(source).copy(Bitmap.Config.RGBA_F16, true); //Mutable
+            // Create bitmap from the source, where each pixel channel is 16 bits. This is a blocking call
+            bitmap = ImageDecoder.decodeBitmap(source).copy(Bitmap.Config.RGBA_F16, true);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        imageV.setImageBitmap(bitmap);
+        imageV.setImageBitmap(bitmap); // Display the bitmap via the image view
         return bitmap;
     }
 
     public Bitmap resizeBitmap (Bitmap bitmap) {
+        // Compress the bitmap to 32x32
         return Bitmap.createScaledBitmap(bitmap, 32,32, false);
     }
 
     public void obtainPixels (Bitmap image) {
         int counter = 0;
 
+        // For all pixels, obtain red, green, blue values and store them as bytes in the byteImage array
         for (int x=0; x<32; x++) {
             for (int y=0; y<32; y++) {
                 byteImage[IMAGE_COUNTER][counter] = (byte) Color.red(image.getPixel(x, y));
@@ -471,18 +441,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void editGif(Uri uri) {
-        GifDecoder gifDecoder = new GifDecoder();
+        GifDecoder gifDecoder = new GifDecoder(); // Create an object of 3rd pty class GifDecoder
+        // Call method to obtain bitmaps of all frames of animated gif
+        // Call returnFilepath as filename
         boolean isSucceeded = gifDecoder.load(returnFilepath(this, uri));
         if (isSucceeded) {
+            // For every frame, store in a bitmap, resize, then obtain pixels
             for (IMAGE_COUNTER = 0; IMAGE_COUNTER < gifDecoder.frameNum(); ++IMAGE_COUNTER) {
                 Bitmap bitmap = gifDecoder.frame(IMAGE_COUNTER);
                 bitmap = resizeBitmap(bitmap);
                 obtainPixels(bitmap);
             }
-            IMAGE_COUNTER = gifDecoder.frameNum();
+            IMAGE_COUNTER = gifDecoder.frameNum(); // Set image counter to frame count
         }
 
-        Glide.with(this)
+        Glide.with(this) // Using 3rd pty class Glide, set the image view to display the animated GIF
                 .asGif()
                 .load(uri)
                 .into(imageV);
@@ -497,67 +470,57 @@ public class MainActivity extends AppCompatActivity {
 
         // Create file path inside app's data dir
         String filePath = context.getApplicationInfo().dataDir + File.separator + "temp_file";
-        File file = new File(filePath);
+        File file = new File(filePath); // Create a file at the above path
         try {
-            InputStream inputStream = contentResolver.openInputStream(uri);
+            InputStream inputStream = contentResolver.openInputStream(uri); // Load the data from uri into an input stream
+
             if (inputStream == null)
                 return null;
-            OutputStream outputStream = new FileOutputStream(file);
-            byte[] buf = new byte[1024];
-            int len;
-            while ((len = inputStream.read(buf)) > 0)
-                outputStream.write(buf, 0, len);
+
+            OutputStream outputStream = new FileOutputStream(file); // Link the output stream to the newly created file
+            byte[] buffer = new byte[10240000]; // Buffer of max size 10MB for uri data
+            int length;
+
+            while ((length = inputStream.read(buffer)) > 0)
+                outputStream.write(buffer, 0, length); // Write the input stream data byte by byte to the output stream/file
+
             outputStream.close();
             inputStream.close();
         } catch (IOException ignore) {
             return null;
         }
-        return file.getAbsolutePath();
+        return file.getAbsolutePath(); // Return the path for the new file
     }
 
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-    public static class CreateConnectThread extends Thread {
+    public static class CreateConnectThread extends Thread { // Class running on background thread to perform Bluetooth connections
 
         public CreateConnectThread(BluetoothDevice device) {
-            /*
-            Use a temporary object that is later assigned to mmSocket
-            because mmSocket is final.
-             */
-            BluetoothSocket tmp = null;
-            UUID uuid = device.getUuids()[0].getUuid();
-
+            BluetoothSocket tmp = null; // Use temp socket that is later assigned to HC05socket as that is final
+            UUID uuid = device.getUuids()[0].getUuid(); // Generate the UUID of the remote device
             try {
-                /*
-                Get a BluetoothSocket to connect with the given BluetoothDevice.
-                Due to Android device varieties,the method below may not work fo different devices.
-                You should try using other methods i.e. :
-                tmp = device.createRfcommSocketToServiceRecord(MY_UUID);
-                 */
+                // Create a socket which will be used to connect to the remote device via the uuid
                 tmp = device.createRfcommSocketToServiceRecord(uuid);
 
             } catch (IOException e) {
                 Log.e("CreateConnectThread", "Socket's create() method failed", e);
             }
-            HC05socket = tmp;
+            HC05socket = tmp; // Assign the newly created socket to the Global final socket HC05socket
         }
 
         public void run() {
-            // Cancel discovery because it otherwise slows down the connection.
-//            BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
-//            bluetoothAdapter.cancelDiscovery();
             try {
-                // Connect to the remote device through the socket. This call blocks
-                // until it succeeds or throws an exception.
-                HC05socket.connect();
+                HC05socket.connect(); // Connect to the remote device through the socket. This call blocks
                 Log.e("Status", "Device connected");
+
+                // Send appropriate message to the UI handler in main thread reporting connecting status
                 handler.obtainMessage(CONNECTING_STATUS, 1, 1).sendToTarget();
-            } catch (IOException connectException) {
-                // Unable to connect; close the socket and return.
+            } catch (IOException connectException) { // Unable to connect; close the socket and return.
                 try {
-                    HC05socket.close();
+                    HC05socket.close(); // Close the bluetooth socket
                     Log.e("Status", "Cannot connect to device");
                     handler.obtainMessage(CONNECTING_STATUS, -1, 1).sendToTarget();
                 } catch (IOException closeException) {
@@ -566,29 +529,20 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            // The connection attempt succeeded. Perform work associated with
-            // the connection in a separate thread.
-            new ConnectedThread(HC05socket).run();
-        }
-
-        // Closes the client socket and causes the thread to finish.
-        public void cancel() {
-            try {
-                HC05socket.close();
-            } catch (IOException e) {
-                Log.e("cancel socket", "Could not close the client socket", e);
-            }
+            // If connection was successful, start the ConnectedThread class on a separate thread ready for data transfer
+            new ConnectedThread(HC05socket).start();
         }
     }
 
-    public static class ConnectedThread extends Thread {
+    public static class ConnectedThread extends Thread { // Class running on background thread to perform Bluetooth data transfer
 
         private final BluetoothSocket mmSocket;
         private final InputStream mmInStream;
         private final OutputStream mmOutStream;
-        static volatile boolean RECIEVE_CONFIRM = false;
+        static volatile boolean RECEIVE_CONFIRM = false; // Set the initial value of RECEIVE_CONFIRM
 
         public ConnectedThread(BluetoothSocket socket) {
+            // Initialise the final socket, temp input/output streams
             mmSocket = socket;
             InputStream tmpIn = null;
             OutputStream tmpOut = null;
@@ -596,17 +550,17 @@ public class MainActivity extends AppCompatActivity {
             // Get the input and output streams; using temp objects because
             // member streams are final.
             try {
-                tmpIn = socket.getInputStream();
+                tmpIn = socket.getInputStream(); // Assign the input stream to hold incoming data from the remote device
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Error occurred when creating input stream", e);
             }
             try {
-                tmpOut = socket.getOutputStream();
+                tmpOut = socket.getOutputStream(); // Assign the output stream to hold outgoing data to the remote device
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Error occurred when creating output stream", e);
             }
 
-            mmInStream = tmpIn;
+            mmInStream = tmpIn; // Assign the temp streams to the final ones
             mmOutStream = tmpOut;
         }
 
@@ -614,9 +568,8 @@ public class MainActivity extends AppCompatActivity {
             // Keep listening to the InputStream until an exception occurs.
             while (true) {
                 try {
-                    // Read from the InputStream.
                     if ((byte) mmInStream.read() > 0) {
-                        RECIEVE_CONFIRM = true;
+                        RECEIVE_CONFIRM = true; // If the input stream holds data, set RECEIVE_CONFIRM to true
                     }
 
                 } catch (IOException e) {
@@ -626,56 +579,64 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        // Call this from the main activity to send data to the remote device.
-        public void write() {
+        public void write() { // Method to send data to the remote device
             try {
-                mmOutStream.write((byte) IMAGE_COUNTER);
-                mmOutStream.write((byte) DECIDER);
+                mmOutStream.write((byte) IMAGE_COUNTER); // Write the value for image counter to the output stream
+                mmOutStream.write((byte) DECIDER); // Write the value for image counter to the output stream
 
                 switch (DECIDER) {
                     case 1:
-                        mmOutStream.write((byte) FPS);
+                        mmOutStream.write((byte) FPS); // If a gif is to be sent, write FPS to the output stream
                         break;
                     case 2:
-                        mmOutStream.write((byte) SLIDESHOW_TIME);
+                        mmOutStream.write((byte) SLIDESHOW_TIME); // If image(s) is to be sent, write slideshow time to the output stream
                 }
 
-                while (!RECIEVE_CONFIRM) {}
+                while (!RECEIVE_CONFIRM) {} // Hold the method is no receive byte has been received in the input stream
 
-                for (int x=0; x<IMAGE_COUNTER; x++) {
-                    byte[][] chunked_image = divideArray(byteImage[x], 128); // chunks = 3072/chunksize
+                for (int x=0; x<IMAGE_COUNTER; x++) { // Iterate for all images/frames loaded
+                    // Call method to divide the byte array into chunks = 3072/chunksize
+                    byte[][] chunked_image = divideArray(byteImage[x], 128); //
 
-                    for (byte[] value : chunked_image) {
-                        while (!RECIEVE_CONFIRM) {}
-                        mmOutStream.write(value);
-                        RECIEVE_CONFIRM = false;
+                    for (byte[] value : chunked_image) { // Iterate for all chunks of the byteImage
+                        while (!RECEIVE_CONFIRM) {} // Hold if RECEIVE_CONFIRM is false
+                        mmOutStream.write(value); // Write a chunk of the byteImage to the output stream
+                        RECEIVE_CONFIRM = false; // Switch RECEIVE_CONFIRM to false to hold the next chunk from being sent
                     }
-                    int progress = (x*100)/IMAGE_COUNTER;
-                    handler.obtainMessage(PROGRESS_BAR, 1, progress);
+
+                    // Send message to the UI handler updating the progress bar with how many images have been sent
+                    handler.obtainMessage(PROGRESS_BAR, 1, (x*100)/IMAGE_COUNTER).sendToTarget();
                 }
+
+                // Send message to UI handler to set progress bar to 100
+                handler.obtainMessage(PROGRESS_BAR, 1, 100).sendToTarget();
+                // Send message to UI handler informing that all images have been sent to the remote device
                 handler.obtainMessage(BT_WRITE, 1, 1).sendToTarget();
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Error occurred when sending data", e);
+                // Send error message to the UI handler
                 handler.obtainMessage(BT_WRITE, -1, 1).sendToTarget();
             }
         }
 
-        public static byte[][] divideArray(byte[] source, int chunksize) {
-            byte[][] return_chunks = new byte[(int)Math.ceil(source.length / (double)chunksize)][chunksize];
-            int start = 0;
+        public static byte[][] divideArray(byte[] source, int chunksize) { // Method to split byte array into chunks
+            int chunks = source.length/chunksize;
+            byte[][] return_chunks = new byte[chunks][chunksize]; // Declare new array of byte arrays with chunks and chunksize
+            int cursor = 0;
 
-            for(int i = 0; i < return_chunks.length; i++) {
-                return_chunks[i] = Arrays.copyOfRange(source, start, start + chunksize);
-                start += chunksize ;
+            for(int i = 0; i < return_chunks.length; i++) { // Iterate for all chunks
+                // Copy bytes from source to selected chunk
+                return_chunks[i] = Arrays.copyOfRange(source, cursor, cursor + chunksize);
+                cursor += chunksize; // Increase the cursor to the number of the next chunk of bytes to be stored
             }
-            return return_chunks;
+            return return_chunks; // Return the chunked byte arrays
         }
 
-        // Call this method from the main activity to shut down the connection.
-        public void cancel() {
+        public void cancel() { // Method to close the Bluetooth socket
             try {
-                mmSocket.close();
-                HC05socket = null;
+                mmSocket.close(); // Close the connection
+                HC05socket = null; // Set the global socket to null
+                // Send message to UI handler informing of closure
                 handler.obtainMessage(BT_CANCEL, 1, 1).sendToTarget();
             } catch (IOException e) {
                 Log.e("connectedthreadstuff", "Could not close the connect socket", e);
