@@ -14,4 +14,3 @@ dependencyResolutionManagement {
 }
 rootProject.name = "WirelessDisplay"
 include ':app'
-include ':library'
