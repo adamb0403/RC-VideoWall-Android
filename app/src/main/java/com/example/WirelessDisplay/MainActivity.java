@@ -146,9 +146,13 @@ public class MainActivity extends AppCompatActivity {
         // Result launcher for the intent created when "upload image" is pressed
         ActivityResultLauncher<Intent> getGif = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> {
                     if (result.getResultCode() == Activity.RESULT_OK) {
+                        long start = System.nanoTime();
                         Intent data = result.getData();
                         Uri uri = data.getData();
                         editGif(uri); // Call method to decode animated GIF
+                        long end = System.nanoTime();
+                        long time = end-start;
+                        Log.i("TIMETEST", "Time between the two events in milliseconds = " + time/1000000);
                         updateImageSelectedText(1);
                         getimagebtn.setEnabled(false); // Disable "upload GIF" button
                         slideshowTime.setEnabled(false);
