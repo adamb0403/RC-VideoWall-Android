@@ -600,12 +600,13 @@ public class MainActivity extends AppCompatActivity {
 
                 for (int x=0; x<IMAGE_COUNTER; x++) { // Iterate for all images/frames loaded
                     // Call method to divide the byte array into chunks = 3072/chunksize
-                    byte[][] chunked_image = divideArray(byteImage[x], 128); //
+                    byte[][] chunked_image = divideArray(byteImage[x], 256); //
 
                     for (byte[] value : chunked_image) { // Iterate for all chunks of the byteImage
                         while (!RECEIVE_CONFIRM) {} // Hold if RECEIVE_CONFIRM is false
                         mmOutStream.write(value); // Write a chunk of the byteImage to the output stream
                         RECEIVE_CONFIRM = false; // Switch RECEIVE_CONFIRM to false to hold the next chunk from being sent
+                        Log.i("280422", "CONFIRM SEND: " + value);
                     }
 
                     // Send message to the UI handler updating the progress bar with how many images have been sent
